@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jul 01 18:05:33 2018
-
-@author: Derek
+file with fuctions. 
+add changeBC
+add change for something difficult. 
 """
 
 import numpy as np
@@ -52,7 +52,11 @@ def readInput(foamCase, foamFile, keyWord):
         return 0
     else:
         expr = keyWord+'\s*(.+?);'
-        entry = re.search(expr, line[0]).group(1)
+        for i in range(len(line)):
+            try:
+                entry = re.search(expr, line[i]).group(1)
+            except:
+                pass
         return entry
     
 def changeInput(foamCase, keyWord, newEntry, foamFile=None):
@@ -75,10 +79,14 @@ def changeInput(foamCase, keyWord, newEntry, foamFile=None):
         else:
             foamFilePath = findFoamFile(foamCase, foamFile)
             with open(foamFilePath, 'r') as f:
-                fileData = f.read()
-            fileData = fileData.replace(entry, newEntry)
+                fileData = f.read().split('\n')
+            for i in range(len(fileData)):
+                if keyWord in fileData[i]:
+                    fileData[i]=fileData[i].replace(entry, newEntry)
+                    print fileData[i]
+#            fileData = fileData.replace(entry, newEntry)
             with open(foamFilePath, 'w') as f:
-                f.write(fileData)
+                f.write('\n'.join(fileData))
             print "keyWord " + keyWord + " changed entry from " + entry + " to " + newEntry + " in file " + foamFile
             f.close()
         return 0
