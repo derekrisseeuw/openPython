@@ -1,0 +1,158 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    "(p|rho)"
+    {
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-05;
+        relTol          0.1;
+        nSweeps         1;
+        minIter         1;
+    }
+
+    "(p|rho)Final"
+    {
+        $p;
+        tolerance       1e-06;
+        relTol          0;
+        minIter         1;
+    }
+
+    "(U|k|epsilon|omega|h)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.1;
+        minIter         1;
+    }
+
+
+    "(U|k|epsilon|omega|h)Final"
+    {
+        $U;
+        tolerance       1e-06;
+        relTol          0;
+    }
+
+        "(Yi|air|H2O|paint)"
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-6;
+        relTol          0;
+        minIter         1;
+    }
+
+/*
+    "(Yi|O2|N2|H2O)"
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-6;
+        relTol          0;
+    }
+
+    h
+    {
+        $Yi;
+        relTol          0.1;
+    }
+
+    hFinal
+    {
+        $Yi;
+    }
+*/
+}
+
+potentialFlow
+{
+    nNonOrthogonalCorrectors 20;
+}
+
+PIMPLE
+{
+    transonic           off;
+    nCorrectors         1;
+    nNonOrthogonalCorrectors 0;
+    nOuterCorrectors    50;
+    momentumPredictor   on;
+ //   rhoMin              0.3;
+ //   rhoMax              2.;
+
+    // 2.4.x
+   // rhoMin  rhoMin      [1 -3 0 0 0 0 0] 0.3;
+   // rhoMax  rhoMax      [1 -3 0 0 0 0 0] 5.;
+
+
+    residualControl
+    {
+        U
+        {
+                tolerance  5e-2;
+                relTol      0;
+        }
+        p
+        {
+                tolerance  5e-2;
+                relTol      0;
+        }
+     }
+}
+
+
+
+relaxationFactors
+{
+    fields
+    {
+        p               0.3;
+        rho             0.1;
+    }
+    equations
+    {
+        ".*)" 0.3;
+        ".*Final"       1;
+    }
+}
+
+
+relaxationFactors-SIMPLE
+{
+    fields
+    {
+        p               0.1;
+        rho             0.05;
+    }
+    equations
+    {
+        U               0.1;
+        "(k|epsilon|omega)"   0.7;
+        e               0.5;
+        h               0.3;
+        tracer0         1;
+
+        ".*Final"       1.0;
+    }
+}
+
+
+// ************************************************************************* //

@@ -1,0 +1,82 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include        "include/initialConditions"
+#include        "../system/parameters"
+
+nozzleInflow    constant 6.9444E-6;         // don't work with parameters. 
+outflow         constant 2.31E-4;    
+inflow          constant 2.31E-4;
+
+
+
+dimensions 	[ 0 1 -1 0 0 0 0 ];
+internalField 	uniform $flowVelocity;
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"
+
+    lowerWall
+    {
+        type    noSlip;
+    }
+
+    upperWall
+    {
+        type    noSlip;
+    }
+
+    shield
+    {
+        type    noSlip;
+    }
+
+    nozzleInlet
+    {
+        type                flowRateInletVelocity;
+        volumetricFlowRate  $nozzleInflow; //6.9444E-6; 
+    }
+
+    shieldInlet
+    {
+        type                flowRateInletVelocity;
+        volumetricFlowRate  $inflow;  // 2.31E-4; 
+    }
+
+    shieldOutlet
+    {
+        type                flowRateOutletVelocity;
+        volumetricFlowRate  $outflow; //  2.31E-4; 
+    }
+
+    outer
+    {
+        type    pressureInletOutletVelocity;
+        value   $internalField;
+    }
+}
+
+
+/*
+    nozzleInlet
+    {
+    type       groovyBC;  //flowRateInletVelocity; R=$R;Ubar=$Ubar
+     //r=sqrt(pos().x*pos().x+pos().y*pos().y);Ux=$r-$r;c=2;a=-$c/($R*$R);Uz=$ubar*($a*$r*$r+$x);Uy=$r-$r;";         //volumetricFlowRate   constant 1.25e-4; // amounts to 30l/min for the full cylinder -Ubar*(a3*pow(r,3)+a2*pow(r,2)+a0)
+    variables  "alpha=-0.5;beta=-1.;Ca=0.;R=$R;Ubar=$Ubar;r=sqrt(pos().x*pos().x+pos().y*pos().y);a3=-10./(6.+5.*alpha);a2=alpha*a3;a1=0;a0=-a1-a2-a3;b3=-10./(6.+5.*beta);b2=beta*b3;b1=0;b0=-b1-b2-b3;Uz=-Ubar*(((a3*r/R+a2)*r/R+a1)*r/R+a0);Urad=Ca*(((b3*r/R+b2)*r/R+b1)*r/R+b0);theta=atan(pos().y/pos().x);Ux=cos(theta)*Urad;Uy=sin(theta)*Urad;"; //;Urad=-Ubar*(((b3*r+b2)*r+b1)*r+b0);theta=atan(pos().y/pos().x);Ux=0;Uy=0;";//Ux=cos(theta)*Urad;Uy=sin(theta)*Urad;";
+    valueExpression "vector (Ux,Uy,Uz)"; //*normal()
+    value       uniform (0 0 0);
+    }
+*/

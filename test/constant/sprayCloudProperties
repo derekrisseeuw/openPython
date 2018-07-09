@@ -1,0 +1,219 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      binary;
+    class       dictionary;
+    location    "constant";
+    object      SprayCloudProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+sprayAngle 20;
+Uz  -6;
+Ux #calc "abs(degToRad($sprayAngle)*$Uz)";
+Up ($Ux $Uz 0);
+
+solution
+{
+    active          true;
+    coupled         false;	// normally this should be on. Excluded to eliminate interference
+    transient       yes;
+    cellValueSourceCorrection on;
+    maxCo           0.3;
+
+    sourceTerms
+    {
+        schemes
+        {
+            rho             explicit 1;
+            U               explicit 1;
+            Yi              explicit 1;
+            h               explicit 1;
+            radiation       explicit 1;
+        }
+    }
+
+    interpolationSchemes        // IN SOME CASES CELL CAUSES IMEDIATE DIVERGENCE.
+    {
+        rho             cellPointWallModified;          //cell
+        U               cellPointWallModified;      // cellPoint; change this?
+        thermo:mu       cellPointWallModified;          //cell
+        T               cellPointWallModified;          //cell  
+        Cp              cellPointWallModified;          //cell
+        kappa           cellPointWallModified;          //cell
+        p               cellPointWallModified;          //cell
+    }
+
+    integrationSchemes
+    {
+        U               Euler;
+        T               analytical;
+    }
+}
+
+
+constantProperties
+{
+    T0              293;
+
+    // place holders for rho0 and Cp0
+    // - reset from liquid properties using T0
+    rho0            1620; //1620;	water //paint		// Particle density
+    Cp0             4180;            // no influence on the solution
+
+    constantVolume  false;			// Whether the phasechangemodel is important
+}
+
+
+subModels
+{
+    particleForces
+    {
+        sphereDrag;
+    }	
+    injectionModels
+    {
+        model1
+        {
+            type            patchInjection;
+            patch           nozzleInlet;    
+            SOI             0.0;        // start of injection
+            massTotal       1.35e-3;        // 13.5e-3= 0.5l/min paint. required, for coupled simulation
+            parcelBasisType mass;       // parcelBasisType must be either 'number', 'mass' or 'fixed'
+          //  flowType        condfsstantVeldocity;   // flowType must be either 'constantVelocity', 'pressureDrivenVelocity' or 'flowRateAndDischarge'
+        //flowType         flowRateAndDischarge
+            U0              $Up;   // Magnitude velocity  injection
+            duration        0.2;        // Duration of injection
+            parcelsPerSecond 10000;     // to satisfy the correct mass flow and mass per particle
+            flowRateProfile constant 1;     // required, but why?
+
+            sizeDistribution
+            {
+                type        RosinRammler;
+
+                RosinRammlerDistribution
+                {
+                    minValue        5e-06;	// 5 um
+                    maxValue        50e-06;	// 50 um
+                    d               25e-06;     // mean on 25 um
+                    n               3;		// shape parameter
+                }
+            }
+        }
+    }
+
+// Look into this part!
+    dispersionModel none; // the combining of particles
+
+    patchInteractionModel localInteraction;
+
+    heatTransferModel none; //RanzMarshall;			
+
+    compositionModel singlePhaseMixture;
+
+    phaseChangeModel none; //liquidEvaporationBoil;
+
+    surfaceFilmModel none;
+
+    atomizationModel none;
+
+    breakupModel    none; //ReitzDiwakar; // ReitzKHRT;
+
+    stochasticCollisionModel none;
+
+    radiation       off;
+
+    localInteractionCoeffs
+    {
+        patches
+        (
+            "(shield|outer)"
+            {
+                type stick;
+            }
+    	    "().*"
+    	    {
+    		type escape;
+    	    }
+        );
+    }
+
+    RanzMarshallCoeffs
+    {
+        BirdCorrection  true;
+    }
+
+    singlePhaseMixtureCoeffs
+    {
+        phases
+        (
+            liquid
+            {
+                paint              1;
+            }
+        );
+    }
+
+/*		To model the evaporation. Model liquidEvaporationBoil
+    liquidEvaporationBoilCoeffs
+    {
+        enthalpyTransfer enthalpyDifference;
+
+        activeLiquids    ( C7H16 );
+    }
+*/
+
+    ReitzDiwakarCoeffs
+    {
+        solveOscillationEq yes;
+        Cbag            6;
+        Cb              0.785;
+        Cstrip          0.5;
+        Cs              10;
+    }
+
+LISACoeffs
+    {
+    	Cl 0.3;
+	cTau 0.2;
+	Q 0.1;
+	lisaExp 2;
+	injectorDirection (0 -1 0);
+	SMDCalculationMethod method1; 	// need to find the right name
+     }
+
+
+/*
+    ReitzKHRTCoeffs
+    {
+        solveOscillationEq yes;
+        B0              0.61;
+        B1              40;
+        Ctau            1;
+        CRT             0.1;
+        msLimit         0.2;
+        WeberLimit      6;
+    }
+*/
+    TABCoeffs
+    {
+        y0              0;
+        yDot0           0;
+        Cmu             10;
+        Comega          8;
+        WeCrit          12;
+    }
+}
+
+
+cloudFunctions
+{
+}
+
+// ************************************************************************* //

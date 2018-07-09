@@ -1,0 +1,17 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus-overset                          |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+
+flowVelocity         (0 0 0);
+pressure             1.e5;
+temperature	     	 300; 
+turbulentNut	     0.001;
+turbulentKE          0.1;
+turbulentOmega       0.1;
+thermalDiff          0.001; // should be 0.001?
+
+// ************************************************************************* //

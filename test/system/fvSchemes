@@ -1,0 +1,98 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSchemes;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+ddtSchemes
+{
+    default         backward;
+}
+
+gradSchemes
+{
+    default         Gauss linear;
+/*   grad(U) cellLimited Gauss linear 1; 
+    grad(nuTilda) cellLimited Gauss linear 1;
+    grad(k) cellLimited Gauss linear 1;
+    grad(kl) cellLimited Gauss linear 1;
+    grad(omega) cellLimited Gauss linear 1;
+    grad(epsilon) cellLimited Gauss linear 1;
+    grad(q) cellLimited Gauss linear 1;
+    grad(zeta) cellLimited Gauss linear 1;
+    grad(v2) cellLimited Gauss linear 1;
+    grad(f) cellLimited Gauss linear 1;
+    grad(sqrt(kt)) cellLimited Gauss linear 1;
+    grad(kt) cellLimited Gauss linear 1;
+    grad(sqrt(kl)) cellLimited Gauss linear 1;
+    grad(p) cellLimited Gauss linear 1;
+    grad(h) cellLimited Gauss linear 1;
+*/
+}
+
+divSchemes
+{
+    default         Gauss linear;
+
+    div(phi,U)      Gauss upwind;
+    div(phid,p)     Gauss upwind;
+    div(phi,K)      Gauss linear;
+    div(phi,k)      Gauss upwind;
+    div(phi,epsilon) Gauss upwind;
+    div(U)          Gauss linear;
+    div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
+    div(phi,Yi_h)   Gauss upwind;
+    // new 
+    div(phi,T)      Gauss upwind;
+}
+
+/*
+divSchemes
+{
+    //diverges 
+    default         none;
+
+    div(phi,U)      bounded Gauss limitedLinear 0.333;
+    div(phid,p)     bounded Gauss limitedLinear 0.333;
+    div(phi,K)      bounded Gauss limitedLinear 0.333;
+    div(phi,k)      bounded Gauss limitedLinear 0.333;
+    div(phi,omega)  bounded Gauss limitedLinear 0.333;
+    div(phi,epsilon) bounded Gauss limitedLinear 0.333;
+    div(U)          bounded Gauss limitedLinear 0.333;
+    div(phi,Yi_h)   Gauss limitedLinear 0.333;
+    div(phi,T)      bounded Gauss limitedLinear 0.333;
+    div(((rho*nuEff)*dev2(T(grad(U))))) Gauss linear;
+
+}
+*/
+laplacianSchemes
+{
+    default        Gauss linear limited 0.333;          // same same
+}
+
+interpolationSchemes
+{
+    default         linear;
+}
+
+snGradSchemes
+{
+    default         orthogonal;         //corrected;
+}
+
+wallDist
+{
+    method meshWave;
+}
+// ************************************************************************* //

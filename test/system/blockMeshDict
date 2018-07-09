@@ -1,0 +1,350 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+scale   0.001;
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// Parameters
+#include        "parameters"
+/*
+B 150;				// width of domain
+bc 10;				// width of shield channel	
+bs 1;				// width of physical shield
+ds 60;				// distance to shield
+R  6.25;			// radius of nozzle inlet
+
+hs 10;				// height of physical shield
+hc 100; 			// height of shield channel
+hio 50;				// height of inlet
+
+F 1.;               // scaling factor for mesh
+*/
+w 1;                // arbitrary width
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// create coordinates
+x0 0;
+x1 $R;
+x2 #calc "$ds-$bc";
+x3 $ds;
+x4 #calc "$ds+$bs";
+x5 #calc "$ds+$bs+$bc";
+x6 $B;
+
+y0 0;
+y1 $hs;
+y2 $hc;
+y3 #calc "$hc+$hio";
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// grading
+
+Nx0 #calc "int($F*$R)";					// nozzleInlet
+Nx1 #calc "int(0.5*$F*$x2)";				// left blocks
+Nx2 #calc "int(1.5*$F*$bc)";				// channel blocks
+Nx3 #calc "int(2*$F*$bs)";					// 	number of thing in shield
+Nx4 #calc "int(0.5*$F*($B-$x5))";			// right block
+
+Ny0 #calc "int(1.5*$F*$hs)";					// boundary on bottom
+Ny1 #calc "int($F*0.5*$hc)";				// height of mid
+Ny2 #calc "int($hio/3)";					// in height of channel
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// vertices
+vertices
+(
+	// first side
+    ($x0 $y0 0)		// 0, first row
+    ($x1 $y0 0)
+    ($x2 $y0 0)
+    ($x3 $y0 0)
+    ($x4 $y0 0)
+    ($x5 $y0 0)
+    ($x6 $y0 0)
+
+    ($x0 $y1 0)		// 7, second row
+    ($x1 $y1 0)
+    ($x2 $y1 0)
+    ($x3 $y1 0)
+    ($x4 $y1 0)
+    ($x5 $y1 0)
+    ($x6 $y1 0)
+
+    ($x0 $y2 0)		// 14, third row
+    ($x1 $y2 0)
+    ($x2 $y2 0)
+    ($x3 $y2 0)
+    ($x4 $y2 0)
+    ($x5 $y2 0)
+    ($x6 $y2 0)
+
+    ($x2 $y3 0)		// 21, fourth row
+    ($x3 $y3 0)
+    ($x4 $y3 0)
+    ($x5 $y3 0)		// 24
+
+	// second side
+    ($x0 $y0 $w)		// 25, first row
+    ($x1 $y0 $w)
+    ($x2 $y0 $w)
+    ($x3 $y0 $w)
+    ($x4 $y0 $w)
+    ($x5 $y0 $w)
+    ($x6 $y0 $w)
+
+    ($x0 $y1 $w)		// 32, second row
+    ($x1 $y1 $w)
+    ($x2 $y1 $w)
+    ($x3 $y1 $w)
+    ($x4 $y1 $w)
+    ($x5 $y1 $w)
+    ($x6 $y1 $w)
+
+    ($x0 $y2 $w)		// 39, third row
+    ($x1 $y2 $w)
+    ($x2 $y2 $w)
+    ($x3 $y2 $w)
+    ($x4 $y2 $w)
+    ($x5 $y2 $w)
+    ($x6 $y2 $w)
+
+    ($x2 $y3 $w)		// 46, fourth row
+    ($x3 $y3 $w)
+    ($x4 $y3 $w)
+    ($x5 $y3 $w)		// 49
+);
+
+
+inlet
+(
+	(1 1 1)				// fraction of xyz-dir, fraction of cells, expansion
+);
+
+
+left
+(
+    (7 5 1)			
+    (3 5 0.25)
+);
+
+right
+(
+    (3 5 4)
+    (7 5 1)
+);
+
+middle
+(
+    (1 2 2)	
+    (2 2 1)
+    (1 2 0.5)
+);
+
+channel
+(
+    (1 2 2)		
+    (2 2 1)
+    (1 2 0.5)
+);
+
+posYR
+(
+    (2 1 1)
+    (1 1 0.25)
+);
+
+blocks
+(
+    hex (0	1	8	7	25	26	33	32)		// 0 First row
+    ($Nx0 $Ny0 1)
+    simpleGrading ($inlet 4 1)
+
+    hex (1	2	9	8	26	27	34	33)		// 1 
+    ($Nx1 $Ny0 1)
+    simpleGrading ($left 4 1)
+
+    hex (2	3	10	9	27	28	35	34)		// 2
+    ($Nx2 $Ny0 1)
+    simpleGrading ($channel 4 1)
+
+    hex (3	4	11	10	28	29	36	35)		// 3
+    ($Nx3 $Ny0 1)
+    simpleGrading (1 4 1)
+
+    hex (4	5	12	11	29	30	37	36)		// 4
+    ($Nx2 $Ny0 1)
+    simpleGrading ($channel 4 1)
+
+    hex (5	6	13	12	30	31	38	37)		// 5
+    ($Nx4 $Ny0 1)
+    simpleGrading ($right 4 1)
+
+    hex (7	8	15	14	32	33	40	39)		// 6 second row
+    ($Nx0 $Ny1 1)
+    simpleGrading ($inlet $middle 1)
+
+    hex (8	9	16	15	33	34	41	40)		// 7 
+    ($Nx1 $Ny1 1)
+    simpleGrading ($left $middle 1)
+
+    hex (9	10	17	16	34	35	42	41)		// 8
+    ($Nx2 $Ny1 1)
+    simpleGrading ($channel $middle 1)
+
+    hex (11	12	19	18	36	37	44	43)		// 9
+    ($Nx2 $Ny1 1)
+    simpleGrading ($channel  $middle 1)
+
+    hex (12	13	20	19	37	38	45	44)		// 10
+    ($Nx4 $Ny1 1)
+    simpleGrading ($right $middle 1)
+
+    hex (16	17	22	21	41	42	47	46)		// 11 third row
+    ($Nx2 $Ny2 1)
+    simpleGrading ($channel 1 1)
+
+    hex (18	19	24	23	43	44	49	48)		// 12
+    ($Nx2 $Ny2 1)
+    simpleGrading ($channel 1 1)
+);
+
+
+edges
+(
+);
+
+boundary
+(
+	back
+    {
+        type patch;
+        faces
+        (
+            (   0   1   8   7   )
+            (   1   2   9   8   )
+            (   2   3   10  9   )
+            (   3   4   11  10  )
+            (   4   5   12  11  )
+            (   5   6   13  12  )
+            (   7   8   15  14  )
+            (   8   9   16  15  )
+            (   9   10  17  16  )
+            (   11  12  19  18  )
+            (   12  13  20  19  )
+            (   16  17  22  21  )
+            (   18  19  24  23  )
+        );
+    }
+	front
+    {
+        type patch;
+        faces
+        (
+            (   25  26  33  32  )
+            (   26  27  34  33  )
+            (   27  28  35  34  )
+            (   28  29  36  35  )
+            (   29  30  37  36  )
+            (   30  31  38  37  )
+            (   32  33  40  39  )
+            (   33  34  41  40  )
+            (   34  35  42  41  )
+            (   36  37  44  43  )
+            (   37  38  45  44  )
+            (   41  42  47  46  )
+            (   43  44  49  48  )
+        );
+    }
+    nozzleInlet
+    {
+        type patch;
+        faces
+        (
+            (14	15	40	39)
+        );
+    }
+    outer
+    {
+        type patch;
+        faces
+        (
+            (6	13	38	31)
+            (13	20	45	38)
+        );
+    }
+    shieldInlet
+    {
+        type patch;
+        faces
+        (
+            (21	22	47	46)
+        );
+    }    
+    shieldOutlet
+    {
+        type patch;
+        faces
+        (
+            (23	24	49	48)
+        );
+    }
+    upperWall
+    {
+        type wall;
+        faces
+        (
+			(	15	16	41	40	)
+			(	16	21	46	41	)
+			(	24	19	44	49	)
+			(	19	20	45	44	)
+
+        );
+    }
+    lowerWall
+    {
+        type wall;
+        faces
+        (
+	        (	0	1	26	25	)
+			(	1	2	27	26	)
+			(	2	3	28	27	)
+			(	3	4	29	28	)
+			(	4	5	30	29	)
+			(	5	6	31	30	)
+        );
+    }
+    shield
+    {
+        type wall;
+        faces
+        (
+        	(	22	17	42	47	)
+			(	17	10	35	42	)
+			(	10	11	36	35	)
+			(	11	18	43	36	)
+			(	18	23	48	43	)
+        );
+    }
+    defaultFaces
+    {
+        type empty;
+        faces ();
+    }
+);
+
+mergePatchPairs
+(
+);

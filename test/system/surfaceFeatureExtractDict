@@ -1,0 +1,71 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+nozzleInlet.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+nozzleHolder.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+outer.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+top.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+bottom.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+symmetryX.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+
+symmetryY.stl
+{
+    extractionMethod    extractFromSurface; // extractFromFile or extractFromSurface
+    extractFromSurfaceCoeffs
+    {includedAngle   150;}
+    writeObj                yes;    // Write options
+}
+// ************************************************************************* //

@@ -1,0 +1,48 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  plus                                  |
+|   \\  /    A nd           | Web:      www.OpenFOAM.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      parameters;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// domain parameters
+B 150;				// width of domain
+bc 10;				// width of shield channel	
+bs 1;				// width of physical shield
+ds 60;				// distance to shield
+R  6.25;			// radius of nozzle inlet
+
+hs 10;				// height of physical shield
+hc 100; 			//height of shield channel
+hio 50;				//height of inlet
+
+F 1;				// grading of the mesh
+
+angle 5;			// angle of the wedge
+
+// Flow parameters
+nozzleInflow	30;	 				//LPM
+nozzleArea		#calc "3.1415*($R*$R)/1000000.";
+Qnozzle			#calc "$nozzleInflow*$angle/(360*60*1000)";
+Unozzle			#calc "$nozzleInflow/($nozzleArea*60*1000)";
+
+// Flow parameters
+shieldInflow	1000;	 			//LPM
+shieldOutflow	1000;
+Qin				#calc "$shieldInflow*$angle/(360*60*1000)";
+Qout			#calc "$shieldOutflow*$angle/(360*60*1000)";
+Uout			#calc "$shieldOutflow/($nozzleArea*60*1000)";		// change the area for real value
+
+//Qnozzle 6.944E-6;	
+//Qin 2.314E-4; 
+
+// ************************************************************************* //
