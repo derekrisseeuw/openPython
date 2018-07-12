@@ -10,7 +10,7 @@ def writeLog(utility):
     return logCommand
     
     
-def writeBlock(hsi, hso, f):
+def writeCustomBlock(hsi, hso, f):
     if hsi>hso:
         blockFile = 'blockMeshDict1'
     elif hsi<hso:

@@ -6,26 +6,27 @@ add change for something difficult.
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import re
 
-def getFoamFiles(foamCase, foamFolders=['system',  'constant', '0.orig']):
+def getFoamFiles(foamCase='.', foamFolders=['system',  'constant', '0.orig']):
     """
     This case returns a list with all the files in which the openfoam data is present.
     Default folders to search are - system, constant and 0.orig folder.
+    Default directory is the current working directory
     ADD SOME ERROR CHECKS
     """    
     foamFiles = []
     for foamFolder in foamFolders:
         casePath = foamCase + '/' + foamFolder + '/'
-        results = [f for f in os.listdir(casePath)] # if os.path.isfile(f)]
-        for result in results:
-            path = casePath + result
-            foamFiles.append(path)
-    for foamFile in foamFiles:
-        if os.path.isdir(foamFile):
-            foamFiles.remove(foamFile)
+        if os.path.isdir(casePath):
+            results = [f for f in os.listdir(casePath)] # if os.path.isfile(f)]
+            for result in results:
+                path = casePath + result
+                foamFiles.append(path)
+        else:
+           print 'The folder ' + foamFolder + ' does not exist. Moving on...\n'
+ 
     return foamFiles
 
 def findFoamFile(foamCase, foamFile):
@@ -51,7 +52,7 @@ def readInput(foamCase, foamFile, keyWord):
     if line == []:
         return 0
     else:
-        expr = keyWord+'\s*(.+?);'
+        expr = '\A' + keyWord+'\s+(.+?);'
         for i in range(len(line)):
             try:
                 entry = re.search(expr, line[i]).group(1)

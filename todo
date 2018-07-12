@@ -1,0 +1,11 @@
+List of parts which need to be changed to the repository.
+
+# 			in the writeFunctions
+1. The writeBlock should be changed to a custom writeBlock file
+2. generic use of the parameters command. Check if certain entries exist. 
+3. 
+
+
+
+#			in the foamFunctions
+1. Set that the default folder is the current working directory
