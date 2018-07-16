@@ -1,0 +1,24 @@
+cd ${0%/*} || exit 1    		 # Run from this directory
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+foamJob -w blockMesh
+mv log blockMesh.log
+
+foamJob -w extrudeMesh
+mv log extrudeMesh.log
+
+foamJob -w changeDictionary
+mv log changeDictionary.log
+
+foamJob -w createPatch -overwrite
+mv log createPatch.log
+
+foamJob -w renumberMesh -overwrite
+mv log renumberMesh.log
+
+foamJob -w checkMesh
+mv log checkMesh.log
+
+restore0Dir
+
+
