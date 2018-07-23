@@ -23,7 +23,7 @@ def getFoamFiles(foamCase='.', foamFolders=['system',  'constant', '0.orig']):
                 path = casePath + result
                 foamFiles.append(path)
         else:
-           print 'The folder ' + foamFolder + ' does not exist. Moving on...\n'
+           print('The folder ' + foamFolder + ' does not exist. Moving on...\n')
  
     return foamFiles
 
@@ -76,23 +76,23 @@ def changeInput(keyWord, newEntry, foamFile=None, foamCase='.'):
     
     if isinstance(entry, str):
         if entry==newEntry:
-            print "For keyWord " + keyWord + " the entry " + entry + " does not change. No changes made"
+            print("For keyWord " + keyWord + " the entry " + entry + " does not change. No changes made")
         else:
             foamFilePath = findFoamFile(foamFile, foamCase)
             with open(foamFilePath, 'r') as f:
                 fileData = f.read().split('\n')
             for i in range(len(fileData)):
-                if keyWord in fileData[i]:
+                if (keyWord in fileData[i] and entry in fileData[i]):
                     fileData[i]=fileData[i].replace(entry, newEntry)
-                    print fileData[i]
+                    print(fileData[i])
 
             with open(foamFilePath, 'w') as f:
                 f.write('\n'.join(fileData))
-            print "keyWord " + keyWord + " changed entry from " + entry + " to " + newEntry + " in file " + foamFile
+            print("keyWord " + keyWord + " changed entry from " + entry + " to " + newEntry + " in file " + foamFile)
             f.close()
         return 0
     else:
-        print "The keyWord: " + keyWord + " could not be found"
+        print("The keyWord: " + keyWord + " could not be found")
         return 0
 
 def checkDicts(steps, foamCase='.'):
@@ -115,8 +115,11 @@ def checkDicts(steps, foamCase='.'):
             dictFile = step + 'Dict'
 
         if dictFile not in Files:
-            print "Cound not find " + dictFile + " in the openFOAM case " + foamCase
-            result = 1
+            if any(step in file for file in Files):
+                print("A dictionary file for " + step  + " is present, but has to be called with -dict option, take caution.")
+            else:
+                print("Cound not find " + dictFile + " in the openFOAM case " + foamCase)
+                result = 1
     return result
     
 def getTimeFolders(foamCase):
@@ -138,7 +141,6 @@ def createCase(foamCase, baseCase):
     """
     Creates a new caseFolder based on the 'baseCase'. The shell script 'copyCase.sh' is used and assumed to be present.
     """
-    
     if 'copyCase.sh' in os.listdir(baseCase):
         f = open('createNewCase.sh', 'w')
         writeLine = 'cd ' + baseCase + '&& ./copyCase.sh ' + foamCase 
@@ -147,7 +149,7 @@ def createCase(foamCase, baseCase):
         os.system('./createNewCase.sh')
         os.remove(os.getcwd()+'/createNewCase.sh')
     else:
-        print "ERROR. The script 'copyCase.sh' is not present in the baseCase directory. Please add this"
+        print("ERROR. The script 'copyCase.sh' is not present in the baseCase directory. Please add this")
     return 0
     
 

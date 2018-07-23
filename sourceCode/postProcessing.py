@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-file with fuctions to interact with openfoam 
+File with functions to postprocess parts of openfoam
 """
 
 import numpy as np
@@ -56,7 +56,11 @@ def initializeParticlePositions(logFile, noPatches):
     patchTypes = ['escape']*noPatches
 
 #    initialize
-    f = open(logFile)
+    try:
+        f = open(logFile)
+    except:
+        f = open(logFile.split('/')[0]+'/log')
+        
     foundPatchNames = False
     foundPatchTypes = False
     lookForStick = False
@@ -81,7 +85,7 @@ def initializeParticlePositions(logFile, noPatches):
             
         if len(patchNames)==noPatches:
             foundPatchNames=True
-
+    print(patchTypes)
     return patchNames
         
     
@@ -94,8 +98,10 @@ def getParticlePositions(foamCase, noPatches):
     logFile = foamCase  + '/' + solver + '.log'
     patchNames = initializeParticlePositions(logFile, noPatches)
     patchTypes = ['none']*noPatches
-
-    f = open(logFile)
+    try:
+        f = open(logFile)
+    except:
+        f = open(foamCase + '/log')
     data = f.readlines()
     f.close()
     
@@ -105,7 +111,7 @@ def getParticlePositions(foamCase, noPatches):
     totParticles = np.array([getParticlesFromLog(line) for line in data if '- parcels added' in line])
     currParticles = np.array([getParticlesFromLog(line) for line in data if 'Current number of parcels' in line])
     
-    particles = np.zeros([len(stickParticles)/noPatches, noPatches+2])
+    particles = np.zeros([int(len(stickParticles)/noPatches), noPatches+2])
     particles[:,noPatches+1] = totParticles
     particles[:,noPatches] = currParticles
     
@@ -124,11 +130,21 @@ def getParticlePositions(foamCase, noPatches):
     if patchTypes.count('stick')==1:
         stickIndex = patchTypes.index('stick')
         escapeIndex = patchTypes.index('escape')
-        print 'only one patch region: ' + patchNames[stickIndex] + ' with stick particles\nCorrecting for the openFOAM error...'
+        print('only one patch region: ' + patchNames[stickIndex] + ' with stick particles\nCorrecting for the openFOAM error...')
         
         particles[:, stickIndex] = particles [:, -1] - particles [:, -2] - particles[:, escapeIndex]
     return [patchNames, patchTypes, particles]
         
+
+def goalFunction(particles):
+    efficiency  = particles[0]/particles[-1]
+    loss        = particles[1]/particles[-1]
+    waste       = particles[2]/particles[-1]
+    
+    lossFactor = 0.5
+    wasteFactor = 1
+    goalValue = 100*efficiency * np.exp(-lossFactor*loss) * (1-waste)**wasteFactor
+    return goalValue
 
         
         
