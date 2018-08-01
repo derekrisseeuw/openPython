@@ -143,5 +143,20 @@ def createRunFile(runFile, steps, options=dict(parallel=False, overwrite=True)):
     f.close()
     return
 
-    
-    
+def write6DoF(time, coors, angles, DoFFile='constant/6DoF.dat'):
+    """
+    Use this function to create a data file with coordinates and angles which openFOAM can read using the 6DoF reader
+    """
+    f = open(DoFFile, 'w')
+    N = len(time)
+    if N==len(coors) and N==len(angles):
+        f.write('\n'+str(N) + '\n(\n')
+        for i in range(N):
+            string = '('+ str(time[i]) + ' ((' + str(coors[i,0]) + ' ' + str(coors[i,1]) + ' ' + str(coors[i,2]) + ') (' + str(angles[i,0]) + ' ' + str(angles[i,1]) + ' ' + str(angles[i,2]) + ')))\n'   
+            f.write(string)
+        f.write(')\n')
+        f.close()
+    else:
+        print 'The length of the arrays is not the same. Check the input.'
+
+    return 0

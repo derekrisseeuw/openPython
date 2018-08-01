@@ -150,5 +150,3 @@ def createCase(foamCase, baseCase):
         print "ERROR. The script 'copyCase.sh' is not present in the baseCase directory. Please add this"
     return 0
     
-
-    
