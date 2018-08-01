@@ -157,7 +157,7 @@ def write6DoF(time, coors, angles, DoFFile='constant/6DoF.dat'):
         f.write(')\n')
         f.close()
     else:
-        print 'The length of the arrays is not the same. Check the input.'
+        print('The length of the arrays is not the same. Check the input.')
 
     return 0
 
