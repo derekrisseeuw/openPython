@@ -7,6 +7,7 @@ import numpy as np
 import os
 import re
 from foamFunctions import getTimeFolders
+from foamFunctions import tailFile, tailFile2
 
 
 def getParticlesFromLog(line):
@@ -85,12 +86,11 @@ def initializeParticlePositions(logFile, noPatches):
             
         if len(patchNames)==noPatches:
             foundPatchNames=True
-    print(patchTypes)
     return patchNames
         
     
     
-def getParticlePositions(foamCase, noPatches):
+def getParticlePositions(foamCase, noPatches, scan='last'):
     """
     This function evaluates the log file of the foamCase and gives the amount of particles that 
     """
@@ -98,19 +98,35 @@ def getParticlePositions(foamCase, noPatches):
     logFile = foamCase  + '/' + solver + '.log'
     patchNames = initializeParticlePositions(logFile, noPatches)
     patchTypes = ['none']*noPatches
-    try:
-        f = open(logFile)
-    except:
-        f = open(foamCase + '/log')
-    data = f.readlines()
-    f.close()
+
+    if os.path.isfile(logFile):
+        logFile = logFile
+    elif os.path.isfile(logFile.split('/')[0]+'/log'):
+        logFile = logFile.split('/')[0]+'/log'
+    else:
+        print('logFile does not exist for case ' + foamCase)
+        return
     
+    if scan=='last':         # get the last n lines of the logfile 
+         n=200
+         data = tailFile2(logFile, n)
+    else:
+        try:
+            f = open(logFile)
+        except:
+            f = open(foamCase + '/log')
+#            data=f.readlines()
+        data = tailFile(logFile, n)
+        f.close()
     
+    # cut the data so it starts with a sprayCloud properties 
+    data = data[data.index('Solving 2-D cloud sprayCloud\n'):]
+
     escapeParticles = np.array([getParticlesFromLog(line) for line in data if '- escape' in line])
     stickParticles = np.array([getParticlesFromLog(line) for line in data if '- stick' in line])
     totParticles = np.array([getParticlesFromLog(line) for line in data if '- parcels added' in line])
     currParticles = np.array([getParticlesFromLog(line) for line in data if 'Current number of parcels' in line])
-    
+
     particles = np.zeros([int(len(stickParticles)/noPatches), noPatches+2])
     particles[:,noPatches+1] = totParticles
     particles[:,noPatches] = currParticles
@@ -141,9 +157,11 @@ def goalFunction(particles):
     loss        = particles[1]/particles[-1]
     waste       = particles[2]/particles[-1]
     
-    lossFactor = 0.5
-    wasteFactor = 1
-    goalValue = 100*efficiency * np.exp(-lossFactor*loss) * (1-waste)**wasteFactor
+    lossFactor = 100
+    wasteFactor = 2
+    goalValue = 100*        efficiency * \
+                            np.exp(-lossFactor*loss) * \
+                            (1-waste)**wasteFactor
     return goalValue
 
         

@@ -3,6 +3,7 @@
 Functions to write instructions for openFOAM
 """
 import numpy as np
+import re
 
 def writeLog(utility):
     """
@@ -171,6 +172,29 @@ def createName(parameters, volumeParameters):
     for param in parameters.keys():
         caseName = caseName + param + str(parameters[param]) + '_'
     for volumeParam in volumeParameters.keys():
-        caseName = caseName + volumeParam + str(volumeParameters[volumeParam][0]) + '_'
+        try:
+            caseName = caseName + volumeParam + str(volumeParameters[volumeParam][0]) + '_'
+        except:
+            caseName = caseName + volumeParam + str(volumeParameters[volumeParam]) + '_'
     caseName = caseName[:-1]
     return caseName
+
+def getParametersFromCase(foamCase):
+    nP = 11
+    parameters=dict()
+    volumeParameters=dict()
+    i=0
+    for P in foamCase.split('_'):
+        row = re.split('(\d.*)',P)
+        if i<nP:
+            try:
+                parameters[row[0]] = int(row[1])
+            except:
+                parameters[row[0]] = float(row[1])
+        else:
+            try:
+                volumeParameters[row[0]] = [int(row[1]), 0.1, 0.1]
+            except:
+                volumeParameters[row[0]] = [float(row[1]), 0.1, 0.1]    
+        i+=1
+    return [parameters, volumeParameters]
