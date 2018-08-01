@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-file with fuctions to interact with openfoam 
+File with functions to postprocess parts of openfoam
 """
 
 import numpy as np
 import os
 import re
 from foamFunctions import getTimeFolders
+from foamFunctions import tailFile, tailFile2
 
 
 def getParticlesFromLog(line):
@@ -56,7 +57,11 @@ def initializeParticlePositions(logFile, noPatches):
     patchTypes = ['escape']*noPatches
 
 #    initialize
-    f = open(logFile)
+    try:
+        f = open(logFile)
+    except:
+        f = open(logFile.split('/')[0]+'/log')
+        
     foundPatchNames = False
     foundPatchTypes = False
     lookForStick = False
@@ -81,12 +86,11 @@ def initializeParticlePositions(logFile, noPatches):
             
         if len(patchNames)==noPatches:
             foundPatchNames=True
-
     return patchNames
         
     
     
-def getParticlePositions(foamCase, noPatches):
+def getParticlePositions(foamCase, noPatches, scan='last'):
     """
     This function evaluates the log file of the foamCase and gives the amount of particles that 
     """
@@ -95,17 +99,35 @@ def getParticlePositions(foamCase, noPatches):
     patchNames = initializeParticlePositions(logFile, noPatches)
     patchTypes = ['none']*noPatches
 
-    f = open(logFile)
-    data = f.readlines()
-    f.close()
+    if os.path.isfile(logFile):
+        logFile = logFile
+    elif os.path.isfile(logFile.split('/')[0]+'/log'):
+        logFile = logFile.split('/')[0]+'/log'
+    else:
+        print('logFile does not exist for case ' + foamCase)
+        return
     
+    if scan=='last':         # get the last n lines of the logfile 
+         n=200
+         data = tailFile2(logFile, n)
+    else:
+        try:
+            f = open(logFile)
+        except:
+            f = open(foamCase + '/log')
+#            data=f.readlines()
+        data = tailFile(logFile, n)
+        f.close()
     
+    # cut the data so it starts with a sprayCloud properties 
+    data = data[data.index('Solving 2-D cloud sprayCloud\n'):]
+
     escapeParticles = np.array([getParticlesFromLog(line) for line in data if '- escape' in line])
     stickParticles = np.array([getParticlesFromLog(line) for line in data if '- stick' in line])
     totParticles = np.array([getParticlesFromLog(line) for line in data if '- parcels added' in line])
     currParticles = np.array([getParticlesFromLog(line) for line in data if 'Current number of parcels' in line])
-    
-    particles = np.zeros([len(stickParticles)/noPatches, noPatches+2])
+
+    particles = np.zeros([int(len(stickParticles)/noPatches), noPatches+2])
     particles[:,noPatches+1] = totParticles
     particles[:,noPatches] = currParticles
     
@@ -124,11 +146,23 @@ def getParticlePositions(foamCase, noPatches):
     if patchTypes.count('stick')==1:
         stickIndex = patchTypes.index('stick')
         escapeIndex = patchTypes.index('escape')
-        print 'only one patch region: ' + patchNames[stickIndex] + ' with stick particles\nCorrecting for the openFOAM error...'
+        print('only one patch region: ' + patchNames[stickIndex] + ' with stick particles\nCorrecting for the openFOAM error...')
         
         particles[:, stickIndex] = particles [:, -1] - particles [:, -2] - particles[:, escapeIndex]
     return [patchNames, patchTypes, particles]
         
+
+def goalFunction(particles):
+    efficiency  = particles[0]/particles[-1]
+    loss        = particles[1]/particles[-1]
+    waste       = particles[2]/particles[-1]
+    
+    lossFactor = 100
+    wasteFactor = 2
+    goalValue = 100*        efficiency * \
+                            np.exp(-lossFactor*loss) * \
+                            (1-waste)**wasteFactor
+    return goalValue
 
         
         

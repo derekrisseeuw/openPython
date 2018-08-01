@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul  9 19:49:40 2018
-Derek Risseeuw
-derekrisseeuw@gmail.com
+Functions to write instructions for openFOAM
 """
+import numpy as np
+import re
 
 def writeLog(utility):
     """
@@ -56,7 +56,7 @@ def writeApplication(f, parallel=False):
     
     f.write(getAppString)
     if parallel:
-        decomposeCommand = 'foamJob -w decomposePar\n'
+        decomposeCommand = 'foamJob -w decomposePar -force\n'
         logCommand = writeLog('decomposePar')
         f.write(decomposeCommand)
         f.write(logCommand)
@@ -160,3 +160,59 @@ def write6DoF(time, coors, angles, DoFFile='constant/6DoF.dat'):
         print 'The length of the arrays is not the same. Check the input.'
 
     return 0
+
+def Q2Vel(Q, ri, ro, angle=0, direction=[0, -1, 0], returnType='stringVector'):
+    """ 
+    This function takes the volumetric inflow and transforms it to an average velocity inflow. 
+    The angle is optional, A stringVector or valueVector can be returned. 
+    """
+    direction= direction/np.linalg.norm(direction)          # normalize the direction vector
+    direction[0] = np.sin(np.deg2rad(angle)) 
+    area = np.pi*(float(ro)**2 - float(ri)**2)
+    
+    Umag = (Q/60000)/area
+    velocity = direction*Umag
+    
+    if returnType=='stringVector':
+        velocity = 'uniform ( ' + str(velocity[0]) + ' ' + str(velocity[1]) + ' ' + str(velocity[2]) + ' )' 
+        return velocity
+    elif returnType=='valueVector':
+        return velocity
+    else:
+        print('Give valid returnType.')
+        return 1
+    
+def createName(parameters, volumeParameters):
+    """  
+    Create an unique name for the runcase
+    """
+    caseName = ''
+    for param in parameters.keys():
+        caseName = caseName + param + str(parameters[param]) + '_'
+    for volumeParam in volumeParameters.keys():
+        try:
+            caseName = caseName + volumeParam + str(volumeParameters[volumeParam][0]) + '_'
+        except:
+            caseName = caseName + volumeParam + str(volumeParameters[volumeParam]) + '_'
+    caseName = caseName[:-1]
+    return caseName
+
+def getParametersFromCase(foamCase):
+    nP = 11
+    parameters=dict()
+    volumeParameters=dict()
+    i=0
+    for P in foamCase.split('_'):
+        row = re.split('(\d.*)',P)
+        if i<nP:
+            try:
+                parameters[row[0]] = int(row[1])
+            except:
+                parameters[row[0]] = float(row[1])
+        else:
+            try:
+                volumeParameters[row[0]] = [int(row[1]), 0.1, 0.1]
+            except:
+                volumeParameters[row[0]] = [float(row[1]), 0.1, 0.1]    
+        i+=1
+    return [parameters, volumeParameters]
