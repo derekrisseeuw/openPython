@@ -11,7 +11,6 @@ from writeFunctions import Q2Vel, createOptimizeRunFile
 from subprocess import check_output
 
 
-
 def getSolverPIDs(solver):
     try:
         pids = check_output(['pgrep', solver]).decode("utf-8").split()
@@ -22,7 +21,6 @@ def getSolverPIDs(solver):
 def checkNProcsBusy(solver='sprayFoam'):
     NProcsBusy = len(getSolverPIDs(solver))+len(getSolverPIDs('blockMesh'))
     return NProcsBusy
-
 
 def getFoamFiles(foamCase='.', foamFolders=['system',  'constant', '0.orig']):
     """
@@ -173,26 +171,6 @@ def tailFile(logFile, n):
     """
     Returns the last n lines of a text file
     """
-#    if os.path.isfile(logFile):
-#        logFile = logFile
-#    elif os.path.isfile(logFile.split('/')[0]+'/log'):
-#        logFile = logFile.split('/')[0]+'/log'
-    
-    f = open(logFile)
-    assert n>=0
-    pos, lines = n+1, []
-    while len(lines)<=n:
-        try:
-            f.seek(-pos,2)
-            
-        except IOError:
-            f.seek(0)
-            break
-        finally:
-            lines = list(f)
-            pos *=2
-    f.close()
-    return lines[-n:]
 
 def tailFile2(logFile, n):
     """
@@ -210,7 +188,6 @@ def tailFile2(logFile, n):
     except:
         lines=[]
     return lines
-
 
 def checkIfExist(foamCase):
     """ 
@@ -236,12 +213,12 @@ def returnProgress(foamCase):
         f = open(logFile)
         lines = tailFile(f, 100)
         f.close()
-#        proc = subprocess.Popen(['tail', '-n100', logFile], stdout=subprocess.PIPE)
-#        lines = proc.stdout.readlines()
+        #        proc = subprocess.Popen(['tail', '-n100', logFile], stdout=subprocess.PIPE)
+        #        lines = proc.stdout.readlines()
         expr = '(?<=Time = ).*'
         for line in lines:
-#            print('\n'+line)
-#            'Time = ' in line
+        #            print('\n'+line)
+        #            'Time = ' in line
             if line.startswith('Time'):
                     Time = float(re.search(expr, line).group(0))
         progress = Time/float(endTime)*100
@@ -257,7 +234,7 @@ def runCase(foamCase, baseCase, parameters, volumeParameters, controlParameters,
     returns 0: case has ran and is finished, 1: case has finished running by other application, 2 case is running
     """
     print('\n==============================================================\nRunning ' + foamCase + '\n==============================================================\n')
-#                            
+                            
     status = checkIfExist(foamCase)
     if status != 2:
         print(foamCase + ' already exists. Continue with next case ...' )
@@ -273,7 +250,7 @@ def runCase(foamCase, baseCase, parameters, volumeParameters, controlParameters,
         #    currentValue = readInput(parameterFile, parameter, foamCase)
         #    parameters[parameter]=currentValue
 
-#  Values to be changed
+        #  Values to be changed
         print('\n\nChanging section\n\n\t\tGeometry')    
         for parameter in parameters.keys():
             changeInput(parameter, parameters[parameter], parameterFile, foamCase)
@@ -321,17 +298,15 @@ def runCase(foamCase, baseCase, parameters, volumeParameters, controlParameters,
             print('\t\tFinished run....')
             return 0
 
-
 def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters, options=dict(parallel=False, overwrite=True)):
     """
     Takes all the input parameters, creates a new case and runs it. 
     Returns the PID the run
     """
-#    print('\n==============================================================\nRunning ' + foamCase + '\n==============================================================\n')
-#                            
+
     status = checkIfExist(foamCase)
     if status != 2:
-#        print(foamCase + ' already exists. Continue with next case ...' )
+        #print(foamCase + ' already exists. Continue with next case ...' )
         print('-')
         if status ==1:
             return []  # for when the case is still running  
@@ -347,7 +322,7 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
         #    currentValue = readInput(parameterFile, parameter, foamCase)
         #    parameters[parameter]=currentValue
 
-#  Values to be changed
+        #  Values to be changed
         print('\n\nChanging section\n\n\t\tGeometry')    
         for parameter in parameters.keys():
             changeInput(parameter, parameters[parameter], parameterFile, foamCase)
@@ -400,11 +375,3 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
                 if pid not in oldPIDs:
                     PIDs.append(pid)
             return PIDs
-
-
-
-
-
-    
-
-        

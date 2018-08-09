@@ -56,7 +56,7 @@ def initializeParticlePositions(logFile, noPatches):
     patchNames = []
     patchTypes = ['escape']*noPatches
 
-#    initialize
+    # initialize
     try:
         f = open(logFile)
     except:
@@ -87,9 +87,7 @@ def initializeParticlePositions(logFile, noPatches):
         if len(patchNames)==noPatches:
             foundPatchNames=True
     return patchNames
-        
-    
-    
+          
 def getParticlePositions(foamCase, noPatches, scan='last'):
     """
     This function evaluates the log file of the foamCase and gives the amount of particles that 
@@ -115,7 +113,6 @@ def getParticlePositions(foamCase, noPatches, scan='last'):
             f = open(logFile)
         except:
             f = open(foamCase + '/log')
-#            data=f.readlines()
         data = tailFile(logFile, n)
         f.close()
     
@@ -142,7 +139,7 @@ def getParticlePositions(foamCase, noPatches, scan='last'):
             patchTypes[i]='escape'
         elif np.sum(stickArray)>0:
             patchTypes[i]='stick' 
-#        
+        
     if patchTypes.count('stick')==1:
         stickIndex = patchTypes.index('stick')
         escapeIndex = patchTypes.index('escape')
@@ -151,7 +148,6 @@ def getParticlePositions(foamCase, noPatches, scan='last'):
         particles[:, stickIndex] = particles [:, -1] - particles [:, -2] - particles[:, escapeIndex]
     return [patchNames, patchTypes, particles]
         
-
 def goalFunction(particles):
     efficiency  = particles[0]/particles[-1]
     loss        = particles[1]/particles[-1]
@@ -163,36 +159,3 @@ def goalFunction(particles):
                             np.exp(-lossFactor*loss) * \
                             (1-waste)**wasteFactor
     return goalValue
-
-        
-        
-"""
-
-
-Solving 2-D cloud sprayCloud
-Cloud: sprayCloud
-    Current number of parcels       = 70
-    Current mass in system          = 4.717340119e-05
-    Linear momentum                 = (1.927911278e-05 -0.0005505073982 -3.901855028e-07)
-   |Linear momentum|                = 0.0005508450162
-    Linear kinetic energy           = 0.006654607481
-    Injector model1:
-      - parcels added               = 106
-      - mass introduced             = 7.17424883e-05
-    Parcel fate: system (number, mass)
-      - escape                      = 0, 0
-    Parcel fate: patch (lowerWallInner|back|front|shieldInlet|nozzleInlet) (number, mass)
-      - escape                      = 36, 2.45690871e-05
-      - stick                       = 0, 0
-    Parcel fate: patch (lowerWallOuter|outer) (number, mass)
-      - escape                      = 0, 0
-      - stick                       = 0, 0
-    Parcel fate: patch (shield|upperWall|shieldOutlet) (number, mass)
-      - escape                      = 0, 0
-      - stick                       = 0, 0
-    Temperature min/max             = 293, 293
-    Mass transfer phase change      = 0
-    D10, D32, Dmax (mu)             = 21.96959583, 26.54929668, 48.68546808
-    Liquid penetration 95% mass (m) = 0.08693072042
-
-"""
