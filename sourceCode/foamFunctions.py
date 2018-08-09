@@ -160,7 +160,7 @@ def createCase(foamCase, baseCase):
     """
     if 'copyCase.sh' in os.listdir(baseCase):
         f = open('createNewCase.sh', 'w')
-        writeLine = 'cd ' + baseCase + '&& ./copyCase.sh ' + foamCase 
+        writeLine = 'cd ' + baseCase + ' && ./copyCase.sh ' + foamCase 
         f.write(writeLine)
         f.close()
         os.system('./createNewCase.sh')
