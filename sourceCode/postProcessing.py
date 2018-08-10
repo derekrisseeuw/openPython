@@ -90,7 +90,7 @@ def initializeParticlePositions(logFile, noPatches):
           
 def getParticlePositions(foamCase, noPatches, scan='last'):
     """
-    This function evaluates the log file of the foamCase and gives the amount of particles that 
+    This function evaluates the log file of the foamCase and gives the amount of particles in the 'scan' part of the log file. Default is the last part for speed. The number of regions distinguished in the sprayCloudProperties file must be specified using the 'noPatches' keyword.
     """
     solver = 'sprayFoam'
     logFile = foamCase  + '/' + solver + '.log'

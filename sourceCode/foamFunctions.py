@@ -6,17 +6,55 @@ file with fuctions to interact with openfoam
 import numpy as np
 import os
 import re
-from writeFunctions import Q2Vel, createOptimizeRunFile
+from writeFunctions import createOptimizeRunFile
+#from shieldflow.shieldFlow import Q2Vel
 #from time import sleep
 from subprocess import check_output
 
 
+#===========================================================================
+#temporary hack
+def Q2Vel(Q, ri, ro, angle=0, direction=[0, -1, 0], returnType='stringVector'):
+    """ 
+    This function takes the volumetric inflow and transforms it to an average velocity inflow. 
+    The angle is optional, A stringVector or valueVector can be returned. 
+    """
+    direction= direction/np.linalg.norm(direction)          # normalize the direction vector
+    direction[0] = np.sin(np.deg2rad(angle)) 
+    area = np.pi*(float(ro)**2 - float(ri)**2)
+    
+    Umag = (Q/60000)/area
+    velocity = direction*Umag
+    
+    if returnType=='stringVector':
+        velocity = 'uniform ( ' + str(velocity[0]) + ' ' + str(velocity[1]) + ' ' + str(velocity[2]) + ' )' 
+        return velocity
+    elif returnType=='valueVector':
+        return velocity
+    else:
+        print('Give valid returnType.')
+        return 1
+    
+    
+#===========================================================================    
+    
 def getSolverPIDs(solver):
     try:
         pids = check_output(['pgrep', solver]).decode("utf-8").split()
     except:
         pids=[]
     return pids
+
+def getActiveDirs(solver):
+    pids = getSolverPIDs(solver)
+    cases = []
+    for pid in pids:
+        lnName = '/proc/' + str(pid) + '/cwd'
+        folder = os.readlink(lnName)
+        cases.append(folder.split('/')[-1])
+    activeFoamCases = np.unique(cases)
+    return activeFoamCases
+    
 
 def checkNProcsBusy(solver='sprayFoam'):
     NProcsBusy = len(getSolverPIDs(solver))+len(getSolverPIDs('blockMesh'))
@@ -38,8 +76,7 @@ def getFoamFiles(foamCase='.', foamFolders=['system',  'constant', '0.orig']):
                 path = casePath + result
                 foamFiles.append(path)
         else:
-           print('The folder ' + foamFolder + ' does not exist. Moving on...\n')
- 
+           print('The folder ' + foamFolder + ' in ' + foamCase + ' does not exist. Moving on...\n')
     return foamFiles
 
 def findFoamFile(foamFile, foamCase='.'):
@@ -48,7 +85,12 @@ def findFoamFile(foamFile, foamCase='.'):
     """
     if len(foamFile.split('/'))==1:   
         foamFiles = getFoamFiles(foamCase)
-        foamFilePath = [elem for elem in foamFiles if elem.endswith('/' + foamFile)][0]
+        foamFilePath = [elem for elem in foamFiles if elem.endswith('/' + foamFile)]
+        if len(foamFilePath)==0:
+            print('foamFile ' + foamFile + ' could not be found.')
+            foamFilePath =''
+        else:
+            foamFilePath = foamFilePath[0]
     else:
         foamFilePath = foamFile
     return foamFilePath
@@ -58,6 +100,8 @@ def readInput(foamFile, keyWord, foamCase='.'):
     This function can find the corresponding entry for a certain keyword in an given openfoam case. 
     """
     foamFilePath = findFoamFile(foamFile, foamCase)
+    if not os.path.isfile(foamFilePath):        #exit the function
+        return
 
     f = open(foamFilePath)
     line = [string for string in f.readlines() if keyWord in string ]
@@ -167,10 +211,7 @@ def createCase(foamCase, baseCase):
         print("ERROR. The script 'copyCase.sh' is not present in the baseCase directory. Please add this")
     return 0
 
-def tailFile(logFile, n):
-    """
-    Returns the last n lines of a text file
-    """
+
 
 def tailFile2(logFile, n):
     """
@@ -189,16 +230,24 @@ def tailFile2(logFile, n):
         lines=[]
     return lines
 
+def tailFile(logFile, n):
+    """
+    Obsolete, refers now to tailFile2
+    """
+    return tailFile2(logFile,n)
+    
+
 def checkIfExist(foamCase):
     """ 
     Checks if a certain openfoam case exists. 0 is exists, 1 is running, 2 doesn't exist. 
     """
     if os.path.isdir(foamCase):
-           endTime = readInput('controlDict', 'endTime', foamCase=foamCase)
-           if os.path.isdir(foamCase+'/' + endTime):
-               return 0
-           else:
-               return 1
+        endTime=0.4 #hardcode the endtime for cases which don't have a system folder
+        endTime = readInput('controlDict', 'endTime', foamCase=foamCase)
+        if os.path.isdir(foamCase+'/' + endTime):
+            return 0
+        else:
+            return 1
     else:
         return 2
     
