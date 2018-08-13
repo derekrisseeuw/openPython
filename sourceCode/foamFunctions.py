@@ -117,7 +117,7 @@ def readInput(foamFile, keyWord, foamCase='.'):
                 pass
         return entry
     
-def changeInput(keyWord, newEntry, foamFile=None, foamCase='.'):
+def changeInput(keyWord, newEntry, foamFile=None, foamCase='.', verbose=True):
     """
     This function can find the corresponding entry for a certain keyword in an given openfoam case.
     Inputs are: (keyWord, newEntry, foamFile=None, , foamCase='.') 
@@ -135,7 +135,8 @@ def changeInput(keyWord, newEntry, foamFile=None, foamCase='.'):
     
     if isinstance(entry, str):
         if entry==newEntry:
-            print("For keyWord " + keyWord + " the entry " + entry + " does not change. No changes made")
+            if verbose:
+                print("For keyWord " + keyWord + " the entry " + entry + " does not change. No changes made")
         else:
             foamFilePath = findFoamFile(foamFile, foamCase)
             with open(foamFilePath, 'r') as f:
@@ -143,11 +144,11 @@ def changeInput(keyWord, newEntry, foamFile=None, foamCase='.'):
             for i in range(len(fileData)):
                 if (keyWord in fileData[i] and entry in fileData[i]):
                     fileData[i]=fileData[i].replace(entry, newEntry)
-                    print(fileData[i])
 
             with open(foamFilePath, 'w') as f:
                 f.write('\n'.join(fileData))
-            print("keyWord " + keyWord + " changed entry from " + entry + " to " + newEntry + " in file " + foamFile)
+            if verbose:
+                print("keyWord " + keyWord + " changed entry from " + entry + " to " + newEntry + " in file " + foamFile)
             f.close()
         return 0
     else:
@@ -347,7 +348,7 @@ def runCase(foamCase, baseCase, parameters, volumeParameters, controlParameters,
             print('\t\tFinished run....')
             return 0
 
-def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters, options=dict(parallel=False, overwrite=True)):
+def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters, options=dict(parallel=False, overwrite=True), verbose=True):
     """
     Takes all the input parameters, creates a new case and runs it. 
     Returns the PID the run
@@ -356,9 +357,8 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
     status = checkIfExist(foamCase)
     if status != 2:
         #print(foamCase + ' already exists. Continue with next case ...' )
-        print('-')
         if status ==1:
-            return []  # for when the case is still running  
+            return []  # for when the case is still running
         else:
             return []    # for when the case has finished running
     else:   
@@ -372,29 +372,33 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
         #    parameters[parameter]=currentValue
 
         #  Values to be changed
-        print('\n\nChanging section\n\n\t\tGeometry')    
+        if verbose:
+            print('\n\nChanging section\n\n\t\tGeometry')    
         for parameter in parameters.keys():
-            changeInput(parameter, parameters[parameter], parameterFile, foamCase)
+            changeInput(parameter, parameters[parameter], parameterFile, foamCase, verbose=verbose)
 
-        print('\n\t\tVolumetric flow parameters')
+        if verbose:
+            print('\n\t\tVolumetric flow parameters')
         for volumeParameter in volumeParameters.keys():
             writeParameter = volumeParameter.replace('Q', 'U')
             if volumeParameter=='QNozzleIn':
                 velocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2], angle = 5)
+                # immediately write to the spraycloudproperties file
+                changeInput('Upnozzle', velocity.strip('uniform '), 'sprayCloudProperties', foamCase, verbose=verbose) 
             elif volumeParameter=='QShieldIn':
                 velocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2])
             elif volumeParameter=='QShieldOut':
                 velocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2], direction=[0, 1, 0])
-            print(velocity)
-            changeInput(volumeParameter, volumeParameters[volumeParameter][0], parameterFile, foamCase)        # for visual interpretation in parameters file
-            changeInput(writeParameter, velocity, 'U', foamCase)                  # for the inflow condition
+            changeInput(volumeParameter, volumeParameters[volumeParameter][0], parameterFile, foamCase, verbose=verbose)        # for visual interpretation in parameters file
+            changeInput(writeParameter, velocity, 'U', foamCase, verbose=verbose)                  # for the inflow condition
             
-        print('\n\t\tControl parameters ')
+        if verbose:
+            print('\n\t\tControl parameters ')
         for controlParameter in controlParameters.keys():
-            changeInput(controlParameter, controlParameters[controlParameter], 'controlDict', foamCase)
+            changeInput(controlParameter, controlParameters[controlParameter], 'controlDict', foamCase, verbose=verbose)
         
-
-        print('\n\t\tRunning section')
+        if verbose:
+            print('\n\t\tRunning section')
         #steps 
         steps =[
                     'blockMesh',
@@ -416,7 +420,8 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
             oldPIDs = getSolverPIDs(solver)
             runFile = foamCase + '/Allrun.sh'
             createOptimizeRunFile(runFile, steps, options, parameters)
-            print('\t\tRunning....')
+            if verbose:
+                print('\t\tRunning....')
             os.system(runFile + ' &')              # actually run the file
             newPIDs = getSolverPIDs(solver)
             PIDs = []

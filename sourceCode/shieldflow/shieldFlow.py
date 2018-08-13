@@ -3,6 +3,7 @@
 Functions to write instructions for openFOAM
 """
 import os
+os.sys.path.append('/media/qlayerspc/DATA/Linux/OpenFOAM/run/python/sourceCode')
 import numpy as np
 from foamFunctions import checkIfExist, getActiveDirs
 import re
@@ -82,7 +83,7 @@ def getParametersFromCase(foamCase):
     
 def findShieldCases(directory='.'):
     """
-    Finds the corrupt cases in the current working directory or the specified folder.  0 means fine, 1 is running and 2 is unusable. don't work with relative paths.
+    Finds the corrupt cases in the current working directory or the specified folder.  0 means fine, 1 is running, 2 is unusable, and 3 does not exist. don't work with relative paths!
     """
     if directory.endswith('/'):
         wd = directory
@@ -100,10 +101,12 @@ def findShieldCases(directory='.'):
             # fix this bug in the checkstatus filed           
             if checkStatus==1:
                 activeFoamCases = getActiveDirs('sprayFoam')
-                if case in activeFoamCases:
+                if case in str(activeFoamCases):
                     caseDict[case]=1
                 else:       # case is not running neither finished, so corrupt
-                    caseDict[case]=2       
+                    caseDict[case]=2  
+            elif checkStatus==2:
+                caseDict[case]=3
             else:       # case is fine
                 caseDict[case]=0
             
