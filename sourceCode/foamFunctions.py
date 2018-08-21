@@ -384,7 +384,8 @@ def runCase2(foamCase, baseCase, parameters, volumeParameters, controlParameters
             if volumeParameter=='QNozzleIn':
                 velocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2], angle = 5)
                 # immediately write to the spraycloudproperties file
-                changeInput('Upnozzle', velocity.strip('uniform '), 'sprayCloudProperties', foamCase, verbose=verbose) 
+                particleVelocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2], angle = 20)
+                changeInput('Upnozzle', particleVelocity.strip('uniform '), 'sprayCloudProperties', foamCase, verbose=verbose) 
             elif volumeParameter=='QShieldIn':
                 velocity = Q2Vel(volumeParameters[volumeParameter][0], volumeParameters[volumeParameter][1], volumeParameters[volumeParameter][2])
             elif volumeParameter=='QShieldOut':

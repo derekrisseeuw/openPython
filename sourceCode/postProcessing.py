@@ -105,9 +105,20 @@ def getParticlePositions(foamCase, noPatches, scan='last'):
         print('logFile does not exist for case ' + foamCase)
         return
     
-    if scan=='last':         # get the last n lines of the logfile 
+    # VERY UGLY FUNCTION FOR NOW
+    if scan=='last':         # get the last n lines of the logfile  
          n=200
          data = tailFile2(logFile, n)
+         try:
+             data = data[data.index('Solving 2-D cloud sprayCloud\n'):]
+         except:
+             try:
+                 f = open(logFile)
+             except:
+                 f = open(foamCase + '/log')
+             data = tailFile(logFile, 2000) #take a safe margin
+             data = data[data.index('Solving 2-D cloud sprayCloud\n'):]
+             f.close()
     else:
         try:
             f = open(logFile)
