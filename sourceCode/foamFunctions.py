@@ -50,8 +50,11 @@ def getActiveDirs(solver):
     cases = []
     for pid in pids:
         lnName = '/proc/' + str(pid) + '/cwd'
-        folder = os.readlink(lnName)
-        cases.append(folder.split('/')[-1])
+        try: 
+            folder = os.readlink(lnName)
+            cases.append(folder.split('/')[-1])
+        except FileNotFoundError:
+            pass
     activeFoamCases = np.unique(cases)
     return activeFoamCases
     
@@ -240,15 +243,18 @@ def tailFile(logFile, n):
 
 def checkIfExist(foamCase):
     """ 
-    Checks if a certain openfoam case exists. 0 is exists, 1 is running, 2 doesn't exist. 
+    Checks if a certain openfoam case exists. 0 is exists, 1 is running, 2 doesn't exist, 3 is corrupt
     """
     if os.path.isdir(foamCase):
-        endTime=0.4 #hardcode the endtime for cases which don't have a system folder
-        endTime = readInput('controlDict', 'endTime', foamCase=foamCase)
-        if os.path.isdir(foamCase+'/' + endTime):
-            return 0
-        else:
-            return 1
+#        endTime=0.4 #hardcode the endtime for cases which don't have a system folder
+        try:
+            endTime = readInput('controlDict', 'endTime', foamCase=foamCase)
+            if os.path.isdir(foamCase+'/' + endTime):
+                return 0
+            else:
+                return 1
+        except:
+            return 3
     else:
         return 2
     

@@ -7,6 +7,7 @@ os.sys.path.append('/media/qlayerspc/DATA/Linux/OpenFOAM/run/python/sourceCode')
 import numpy as np
 from foamFunctions import checkIfExist, getActiveDirs
 import re
+from postProcessing import getParticlePositions, goalFunction
 
 def checkIfShieldFlowCase(foamCase):
 	"""
@@ -98,15 +99,17 @@ def findShieldCases(directory='.'):
     for case in cases:
         if checkIfShieldFlowCase(case):
             checkStatus = checkIfExist(case)
-            # fix this bug in the checkstatus filed           
+            # fix this bug in the checkstatus file           
             if checkStatus==1:
                 activeFoamCases = getActiveDirs('sprayFoam')
                 if case in str(activeFoamCases):
                     caseDict[case]=1
                 else:       # case is not running neither finished, so corrupt
                     caseDict[case]=2  
-            elif checkStatus==2:
+            elif checkStatus==2:        # Finished 
                 caseDict[case]=3
+            elif checkStatus==3:        # corrupt
+                caseDict[case]=2
             else:       # case is fine
                 caseDict[case]=0
             
@@ -133,3 +136,89 @@ def cleanCorruptCases(directory='.'):
             print(case + ' is corrupt, removed')
             os.system('rm -rf ' + case)  
     return
+
+def paramsToGenesettings(parameters, volumeParameters):
+    # See parameter order in gene class
+    paramsList = list(parameters.values())[:]
+    paramsList = paramsList+ [elem[0] for elem in list(volumeParameters.values())[:]]
+    gene_settings = [(paramsList[0],   True,    150,    150,    0),       # B
+                     (paramsList[1],  False,      1,     20,    1),       # bc
+                     (paramsList[2],  False,      1,      3,    1),       # bs
+                     (paramsList[3],  False,     20,     80,   10),       # ds
+                     (paramsList[4],   True,   6.25,   6.25,   0.),       # R
+                     (paramsList[5],  False,     10,     70,    5),       # hsi
+                     (paramsList[6],  False,     10,     70,    5),       # hso
+                     (paramsList[7],  False,     50,    100,   10),       # hc 
+                     (paramsList[8],   True,     20,     20,    0),       # hio
+                     (paramsList[9],   True,    0.7,    0.7,   0.),       # F
+                     (paramsList[10],  True,      5,      5,    0),       # angle
+                     (paramsList[11],  True,    150,    150,    0),       # QNozzleIn 
+                     (paramsList[12], False,      0,   1000,  100),       # QShieldIn
+                     (paramsList[13], False,      0,   1000,  100),       # QShieldOut                 
+                     ]
+    return gene_settings
+
+def paramsListToGenesettings(paramsList):
+    # See parameter order in gene class
+    gene_settings = [(int(paramsList[0]),   True,    150,    150,    0),       # B
+                     (int(paramsList[1]),  False,      1,     20,    1),       # bc
+                     (int(paramsList[2]),  False,      1,      3,    1),       # bs
+                     (int(paramsList[3]),  False,     20,     80,   10),       # ds
+                     (paramsList[4],   True,   6.25,   6.25,   0.),       # R
+                     (int(paramsList[5]),  False,     10,     70,    5),       # hsi
+                     (int(paramsList[6]),  False,     10,     70,    5),       # hso
+                     (int(paramsList[7]),  False,     50,    100,   10),       # hc 
+                     (int(paramsList[8]),   True,     20,     20,    0),       # hio
+                     (paramsList[9],   True,    0.7,    0.7,   0.),       # F
+                     (int(paramsList[10]),  True,      5,      5,    0),       # angle
+                     (int(paramsList[11]),  True,    150,    150,    0),       # QNozzleIn 
+                     (int(paramsList[12]), False,      0,   1000,  100),       # QShieldIn
+                     (int(paramsList[13]), False,      0,   1000,  100),       # QShieldOut                 
+                     ]
+    return gene_settings
+
+
+
+def getShieldCaseResults(directory='.'):
+    os.chdir(directory)
+    
+    ####--------------  Find the existing cases in the folder   -----------------------------####
+    caseDict = findShieldCases(directory)
+    #
+    Nruns = len(caseDict)
+    Nparams = 1 + len(list(caseDict.keys())[0].split('_'))
+    results=dict()
+    
+    ####--------------  Load the previously found cases    ----------------------------------####
+    writeFile = os.getcwd() + '/goalResults.dat'
+    if os.path.isfile(writeFile):
+        f = open(writeFile)
+        for line in f.readlines():
+            [foamCase, value] = line.split()
+            results[foamCase] = float(value)
+        f.close()
+    
+    ####--------------  Find the goal functions of the missing cases ------------------------####
+    f = open(writeFile, 'a')
+    for foamCase in caseDict.keys():
+        if caseDict[foamCase]>0:
+            print('case ' + foamCase + ' is ignored because it is still running or corrupt')
+        elif (os.path.isdir(foamCase) and foamCase not in results.keys()):
+            [patchNames, patchType, particles] =  getParticlePositions(foamCase, 3, scan='last')
+            goalValue = goalFunction(particles[-1])
+            line = foamCase +  ' ' + str(goalValue) + '\n'
+            f.write(line)
+            results[foamCase] = goalValue
+    f.close()
+    
+    
+    Nruns = len(results)
+    i=0
+    resultArray = np.zeros([Nruns, Nparams])
+    for foamCase in results.keys():
+        [params1, params2] =  getParametersFromCase(foamCase)
+        resultArray[i, 0:len(params1)] = list(params1.values())
+        resultArray[i, len(params1):-1] = [elem[0] for elem in list(params2.values())]
+        resultArray[i,-1] = results[foamCase]
+        i+=1    
+    return resultArray
