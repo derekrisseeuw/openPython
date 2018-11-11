@@ -45,31 +45,33 @@ def writeVertices(f, coors):
     f.write(");\n")
     return 0
 
-def writeBlocks(f, coors, Nlayer):
+def writeCustomBlocks(f, coors, Ncoors):
     f.write("blocks\n(\n")
-    incr = len(coors)/Nlayer;
     
+    blocks = np.empty((0,8), int)
     # inner circle
-    Npoints = 8
+    niBlocks = 8
     elements = np.array([10, 10, 10])
     grading = np.array([1,1,1])
-    points = np.array([0, 8, 9, 1])
-    pointMax = np.array([8, 16, 16, 8])
-    for i in range(Npoints):
-        points1 = points+i
-        bools = points1>(pointMax-1)
-        points1 = points1 - bools*Npoints
+    pointsI = np.array([0, 8, 9, 1])
+    pointIMax = np.array([8, 16, 16, 8])
+    for i in range(niBlocks):
+        points1 = pointsI+i
+        bools = points1>(pointIMax-1)
+        points1 = points1 - bools*niBlocks
 
-        blockPoints = np.append(points1, points1+incr)
-        print(blockPoints)
-
+        blockPoints = np.append(points1, points1+Ncoors)
+        blocks = np.append(blocks, [blockPoints], axis=0)
         writeBlock(f, blockPoints, elements)
+
     f.write("\n")
+
+
     # outer circle
-    Npoints = 8
+    noBlocks = 12
     elements = np.array([10, 10, 10])
     grading = np.array([1,1,1])
-    points = np.array([[10, 31, 16, 17],
+    pointsO = np.array([[10, 31, 16, 17],
                         [10, 17, 18, 11],
                         [11, 18, 19, 12],
                         [12, 19, 20, 21],
@@ -80,20 +82,22 @@ def writeBlocks(f, coors, Nlayer):
                         [15, 26, 27, 8],
                         [8, 27, 28, 29],
                         [8, 29, 30, 9],
-                        [9, 30, 31, 10]])
-    
-    pointMax = np.array([8, 16, 16, 8])
-    for i in range(len(points)):
-        points1 = points[i,:]
-        blockPoints = np.append(points1, points1+incr)
-        print(blockPoints)
+                        [9, 30, 31, 10]]) 
+
+    for i in range(len(pointsO)):
+        points1 = pointsO[i,:]
+        blockPoints = np.append(points1, points1+Ncoors)
+        blocks = np.append(blocks, [blockPoints], axis=0)
         writeBlock(f, blockPoints, elements)
     
     f.write(");\n")
-    return 0
+    return blocks
 
 
 def writeBlock(f, points, elements, grading=np.array([1,1,1])):
+    """
+    Here you can write a block with the specified points, elements and an optional grading
+    """
     f.write("\thex (   " )
     for point in points:
         f.write(str(int(point))+ "  ")
@@ -105,13 +109,74 @@ def writeBlock(f, points, elements, grading=np.array([1,1,1])):
         for grade in grading:
             f.write(str(grade) + "  ") 
         f.write(")\n")
-
+    elif len(grading)==12:
+        f.write(" )\n\t\tedgeGrading ( ")
+        for grade in grading:
+            f.write(str(grade) + "  ") 
+        f.write(")\n")
+    else:
+        print("provide a valid grading criterion.")
+        return 0
     return 0
         
-def writeEdges(f, coors):
-    f.write("edges\n(\n")
+def writeCustomEdges(f, coors, ellipseCoorsFile, Ncoors, span, widthMargin, arcCoors):
+    f.write('#include "splineCoors.dat";\n')
 
-    f.write(");\n")    
+    f.write("edges\n(\n")
+    # =========================================================== #
+    # First create the splineCoors
+    print('running ellipseCoors.py. Check if the parameters are set correctly!!!')
+    exec(open(ellipseCoorsFile).read())
+
+    # polyLines part. 
+    splineName = 'coor'
+    splines  = [0, 1, 2]
+    sides = ['symm', 'tip'] #, 'outer']
+    sidesDict = {'symm':0, 'tip':span, 'outer':widthMargin}
+    vsides = ['top', 'bottom']
+    hsides = ['left', 'right']
+    polyLines = np.array([
+                        [10,  9],
+                        [9,   8],
+                        [1,   9],
+                        [10, 11],
+                        [11, 12],
+                        [3,  11],
+                        [14, 15],
+                        [15,  8],
+                        [7,  15],
+                        [14, 13],
+                        [13, 12],
+                        [5,  13]])
+    arcLines = np.array([
+                    [0, 1],
+                    [3, 4],
+                    [4, 5],
+                    [7, 0]])
+    copyArcCoors = np.copy(arcCoors)
+    for i in range(1,len(sides)):
+        polyLines = np.append(polyLines, polyLines+Ncoors*i, axis=0)
+        arcLines = np.append(arcLines, arcLines+Ncoors*i, axis=0)
+        copyArcCoors[:,2]=sidesDict[sides[i]]
+        arcCoors = np.append(arcCoors, copyArcCoors, axis=0)
+
+    j=0
+    for side in sides:                      # type of spline
+        for hside in hsides:                # side z-directions
+            for vside in vsides:            # left, right
+                for spline in splines:      # top, bottom
+                    name = splineName + str(spline) + side + hside + vside
+                    f.write('\tpolyLine ' + str(polyLines[j,0]) + ' ' + str(polyLines[j,1]) + '  $'+name+'\n')
+                    j+=1
+
+
+    j=0
+    for side in sides:
+        for k in range(4):
+            f.write('\tarc ' + str(arcLines[j,0]) + ' ' + str(arcLines[j,1]) + ' ( ' + str(arcCoors[j,0]) + ' ' + str(arcCoors[j,1]) + ' ' + str(arcCoors[j,2]) +' )\n')
+            j+=1
+
+    f.write(");\n")
     return 0
 
 def writeBoundary(f, coors):

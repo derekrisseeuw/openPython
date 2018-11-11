@@ -4,6 +4,7 @@ __all__ = [	"ellipseGetX",
             "rotCirc",
             "writeVertices",
             "writeBlocks",
+            "writeBlock",
             "writeEdges",
             "writeBoundary",
             "writeMergePatchPars"
