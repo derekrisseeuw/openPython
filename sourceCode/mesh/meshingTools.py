@@ -30,4 +30,10 @@ def getQuadPoints(a, b, angle, c, h):
     A = [[h*h/4., h/2., 1.],[x1*x1, x1, 1.],[h, 1., 0.]]
     coeffs = np.dot(np.linalg.inv(A), RHS) 
     return coeffs  
-    
+        
+def rotCirc(circ, angle):
+    """
+    Function to rotate (circ??) by a angle. 
+    """
+    rot = np.array([[np.cos(angle), -np.sin(angle), 0],[np.sin(angle), np.cos(angle), 0],[0, 0, 1]]) 
+    return np.dot(rot, circ.T)   
