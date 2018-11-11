@@ -4,6 +4,9 @@ Functions to write instructions for openFOAM
 """
 import numpy as np
 import re
+import os
+#from foamFunctions import changeInput
+
 
 def writeLog(utility):
     """
@@ -160,4 +163,23 @@ def write6DoF(time, coors, angles, DoFFile='constant/6DoF.dat'):
         print('The length of the arrays is not the same. Check the input.')
 
     return 0
+
+def writeHeader(f, OFobject, classType='dictionary'):
+    """
+    Use this file to create a openfoam style header
+    """
+    templateFile = os.path.dirname(os.path.realpath(__file__)) + '/headerTemplate'
+    g = open(templateFile)    
+    for line in g.readlines():
+        if 'dummyClass' in line:
+            line = line.replace('dummyClass', classType)
+        elif 'dummyObject' in line:
+            line =line.replace('dummyObject', OFobject)
+        f.write(line)
+    g.close()
+    return 0
+
+
+    
+# =========================================================== #
 

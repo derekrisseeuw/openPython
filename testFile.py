@@ -9,30 +9,14 @@ import os
 from shieldflow.shieldFlow import findShieldCases, cleanCorruptCases
 from foamFunctions import checkIfExist
 from foamFunctions import getSolverPIDs, getActiveDirs
+from writeFunctions import writeHeader
 import numpy as np
 
-directory = '/media/qlayerspc/DATA/Linux/OpenFOAM/run/spray/shieldFlow/optimization'
-caseDict = findShieldCases(directory)
-#print(caseDict)
-os.chdir('/media/qlayerspc/DATA/Linux/OpenFOAM/run/spray/shieldFlow/optimization')
 
-cleanCorruptCases(directory)
-        
-        
-#for folder in os.listdir():
-#    if folder.startswith('B150'):
-#        checkStatus = checkIfExist(folder)
-#        if checkStatus==1:
-#            print(folder)
-#            activeFoamCases = getActiveDirs('sprayFoam')
-#            if folder in activeFoamCases:
-#                caseDict[folder]=1
-#            else:       # case is not running neither finished, so corrupt
-#                caseDict[folder]=2       
-#        else:       # case is fine
-#            caseDict[folder]=0
-#        
-#solver = 'sprayFoam'
-#PIDS = getSolverPIDs(solver)
-#activeDirs = getActiveDirs(solver)
-#print(activeDirs)
+
+classType = 'dictionary'
+f = open("test/testDict", 'w')
+writeHeader(f, 'blockMeshDict', classType)
+f.close()
+
+

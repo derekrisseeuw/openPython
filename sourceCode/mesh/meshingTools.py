@@ -37,3 +37,101 @@ def rotCirc(circ, angle):
     """
     rot = np.array([[np.cos(angle), -np.sin(angle), 0],[np.sin(angle), np.cos(angle), 0],[0, 0, 1]]) 
     return np.dot(rot, circ.T)   
+
+def writeVertices(f, coors):
+    f.write("vertices\n(\n")
+    for i in range(len(coors)):
+        f.write("\t( " +str(coors[i,0]) + "  " + str(coors[i,1]) + "  " + str(coors[i,2]) + "  )\n")
+    f.write(");\n")
+    return 0
+
+def writeBlocks(f, coors, Nlayer):
+    f.write("blocks\n(\n")
+    incr = len(coors)/Nlayer;
+    
+    # inner circle
+    Npoints = 8
+    elements = np.array([10, 10, 10])
+    grading = np.array([1,1,1])
+    points = np.array([0, 8, 9, 1])
+    pointMax = np.array([8, 16, 16, 8])
+    for i in range(Npoints):
+        points1 = points+i
+        bools = points1>(pointMax-1)
+        points1 = points1 - bools*Npoints
+
+        blockPoints = np.append(points1, points1+incr)
+        print(blockPoints)
+
+        writeBlock(f, blockPoints, elements)
+    f.write("\n")
+    # outer circle
+    Npoints = 8
+    elements = np.array([10, 10, 10])
+    grading = np.array([1,1,1])
+    points = np.array([[10, 31, 16, 17],
+                        [10, 17, 18, 11],
+                        [11, 18, 19, 12],
+                        [12, 19, 20, 21],
+                        [12, 21, 22, 13],
+                        [13, 22, 23, 14],
+                        [14, 23, 24, 25],
+                        [14, 25, 26, 15],
+                        [15, 26, 27, 8],
+                        [8, 27, 28, 29],
+                        [8, 29, 30, 9],
+                        [9, 30, 31, 10]])
+    
+    pointMax = np.array([8, 16, 16, 8])
+    for i in range(len(points)):
+        points1 = points[i,:]
+        blockPoints = np.append(points1, points1+incr)
+        print(blockPoints)
+        writeBlock(f, blockPoints, elements)
+    
+    f.write(");\n")
+    return 0
+
+
+def writeBlock(f, points, elements, grading=np.array([1,1,1])):
+    f.write("\thex (   " )
+    for point in points:
+        f.write(str(int(point))+ "  ")
+    f.write(" )\n\t\t( ")
+    for element in elements:
+        f.write(str(element)+ "  ")
+    if len(grading)==3:
+        f.write(" )\n\t\tsimpleGrading ( ")
+        for grade in grading:
+            f.write(str(grade) + "  ") 
+        f.write(")\n")
+
+    return 0
+        
+def writeEdges(f, coors):
+    f.write("edges\n(\n")
+
+    f.write(");\n")    
+    return 0
+
+def writeBoundary(f, coors):
+    f.write("boundary\n(\n")
+    
+    f.write(");\n")
+    return 0
+
+def writeMergePatchPars(f):
+    f.write("mergePatchPairs\n(\n")
+    f.write(");\n")
+    return 0
+
+
+
+    # Steps:
+#1. Write the vertices
+#2. Write the grading
+#3. write the blocks
+#4. include the splineCoors.dat
+#5. write the edges
+#6. write the boundary
+#7. end with mergePatchPairs.
