@@ -7,6 +7,7 @@ import numpy as np
 import os
 import re
 from writeFunctions import createOptimizeRunFile
+from PyFOAM_custom.PyFOAM_custom import getRANSfileName
 #from shieldflow.shieldFlow import Q2Vel
 #from time import sleep
 from subprocess import check_output
@@ -86,6 +87,7 @@ def findFoamFile(foamFile, foamCase='.'):
     """
     function to find the path of the file. Checks if the foamFile is a path or name
     """
+    # check first if the path is absolute or relative. 
     if len(foamFile.split('/'))==1:   
         foamFiles = getFoamFiles(foamCase)
         foamFilePath = [elem for elem in foamFiles if elem.endswith('/' + foamFile)]
@@ -98,15 +100,30 @@ def findFoamFile(foamFile, foamCase='.'):
         foamFilePath = foamFile
     return foamFilePath
 
-def readInput(foamFile, keyWord, foamCase='.'):
+def readInput(foamFile, keyWord, foamCase='.', lineOffset=None):
     """
-    This function can find the corresponding entry for a certain keyword in an given openfoam case. 
+    This function can find the corresponding entry for a certain keyword 
+    in an given openfoam case. 
+    Optional parameters:
+        foamCase
+        lineOffset (returns the entire line )
     """
     foamFilePath = findFoamFile(foamFile, foamCase)
     if not os.path.isfile(foamFilePath):        #exit the function
+        print("foamFile %s could not be found" % foamFilePath)
         return
 
     f = open(foamFilePath)
+    # For entry on the same line. 
+    if lineOffset is not None:
+        line = []
+        strings = [string.split('\n')[0] for string in f.readlines()]
+        for i in range(len(strings)):
+            if keyWord in strings[i]:
+                line.append(strings[i+lineOffset])
+                break
+        return line[0]
+    
     line = [string for string in f.readlines() if keyWord in string ]
     f.close()
     if line == []:
@@ -119,7 +136,23 @@ def readInput(foamFile, keyWord, foamCase='.'):
             except:
                 pass
         return entry
-    
+
+def readSize(time, foamCase=".", fieldType="vol"):
+    """
+    Experimental function to read the mesh size. 
+    Only works with 
+        - U for the volField 
+        - pointDisplacement for the pointField
+    """
+    if fieldType =="vol":
+        foamFile = "U"
+    elif fieldType == "point":
+        foamFile = "pointDisplacement"
+
+    foamFilePath = getRANSfileName(foamCase, time, foamFile)
+    size = int(readInput(foamFilePath, "internalField", foamCase, lineOffset=1))
+    return size
+
 def changeInput(keyWord, newEntry, foamFile=None, foamCase='.', verbose=True):
     """
     This function can find the corresponding entry for a certain keyword in an given openfoam case.
@@ -185,7 +218,7 @@ def checkDicts(steps, foamCase='.'):
                 result = 1
     return result
     
-def getTimeFolders(foamCase):
+def getTimeFolders(foamCase, returnType="string"):
     timeFolders = []
     timeFoldersNum = []
     for file in os.listdir(foamCase):
@@ -197,9 +230,21 @@ def getTimeFolders(foamCase):
             pass
     sortArray = np.argsort(timeFoldersNum)
     timeFolders = np.array(timeFolders)
-    timeFolders[sortArray]
-    return timeFolders
+    timeFoldersNum.sort()
+    if returnType == "string":
+        return timeFolders[sortArray]
+    elif returnType == "float":
+        return timeFoldersNum
 
+def findNearestTime(foamCase, time):
+    times = np.array(getTimeFolders(foamCase,returnType="float"))
+    if time in times:
+        return time
+    else:
+        nearestTime = times[np.argmin(abs(times-time))]
+        print("Time %f is not available, choosing nearest time %f" % ( time, nearestTime))
+        return nearestTime
+        
 def createCase(foamCase, baseCase):
     """
     Creates a new caseFolder based on the 'baseCase'. The shell script 'copyCase.sh' is used and assumed to be present.
@@ -214,8 +259,6 @@ def createCase(foamCase, baseCase):
     else:
         print("ERROR. The script 'copyCase.sh' is not present in the baseCase directory. Please add this")
     return 0
-
-
 
 def tailFile2(logFile, n):
     """

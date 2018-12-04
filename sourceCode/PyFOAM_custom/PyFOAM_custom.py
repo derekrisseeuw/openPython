@@ -9,6 +9,7 @@ import numpy as np
 import csv as csv
 import scipy.interpolate as interp
 from scipy.interpolate import griddata
+from scipy import spatial
 import os
 import subprocess
 
@@ -22,7 +23,7 @@ def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshR
         Directory to read data from.
     nx_RANS, ny_RANS : integer
         Number of divisions in RANS mesh.
-    endTime : integer
+    endTime : integer or float
         Iteration to read data from.
     turb_model : string
         Turbulent model used.
@@ -45,7 +46,7 @@ def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshR
     # Obtain RANS mesh if it not given as input.
     if meshRANS==None:
         data_RANS['mesh'] = \
-            read_RANS_mesh(case_dir, nx_RANS, ny_RANS, read_cell_surface=False)
+            read_RANS_mesh(case_dir, nx_RANS, ny_RANS, endTime, read_cell_surface=False)
     else:
         data_RANS['mesh'] = meshRANS
     # Obtain variables.
@@ -71,21 +72,19 @@ def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshR
         print("Reynolds stress tensor not found!")
     # Additional variables are read if they exist.
     try:
-        gradUlist   = getRANSTensor(case_dir, endTime, 'grad(U)')
-        gradU       = getRANSPlane(gradUlist, '2D', nx_RANS, ny_RANS, 'tensor')
         vortlist    = getRANSVector(case_dir, endTime, 'vorticity')
         vort        = getRANSPlane(vortlist, '2D', nx_RANS, ny_RANS, 'vector')
+        data_RANS['vorx'] = vort[0]
+        data_RANS['vory'] = vort[1]
+        data_RANS['vorz'] = vort[2]
+    except:
+        print("Vorticity not found!")
+    try:
         Qlist       = getRANSScalar(case_dir, endTime, 'Q')
         Q           = getRANSPlane(Qlist, '2D', nx_RANS, ny_RANS, 'scalar')
-        data_RANS['gradU'] = gradU
-        data_RANS['gradUxx'] = gradU[0][0]
-        data_RANS['gradUyx'] = gradU[0][1]
-        data_RANS['gradUxy'] = gradU[1][0]
-        data_RANS['gradUyy'] = gradU[1][1]
-        data_RANS['vort'] = vort
         data_RANS['Q'] = Q[0]
     except:
-        print("grad(U), vorticity or Q not found!")
+        print("Q not found!")
 
     # Perform interpolation in Cartesian mesh.
     variables = ['um', 'vm', 'wm', 'pm', 'uu', 'vv', 'ww', 'uv', 'k']
@@ -97,8 +96,56 @@ def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshR
     # Return data.
     return data_RANS
 
+def getRANSfileName(case,time,var):
+    fileName = case + '/' + str(time) + '/' + var
+    if os.path.isfile(fileName):
+        return fileName
+    else:
+        found=False
+        i=10
+        while (not found and i<30):
+            line =  case + "/%." + "%if" % (i)
+            line2 = '/' + var
+            line = line % time
+            fileName = line + line2
+            if os.path.isfile(fileName):
+                return fileName
+                found=True
+            else:
+                i+=1
+            
+        if found==False:
+            fileName = case + '/' + str(int(time)) + '/' + var
+            if os.path.isfile(fileName):
+                return(fileName)
+
+def getRANSfile(case,time,var):
+    try:
+        file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+        return file
+    except:
+        i=14
+        found=False
+        while (not found and i<30):
+            try:
+                line =  case + "/%." + "%if" % (i)
+                line2 = '/' + var
+                line = line % time
+                varName = line + line2
+                file = open(varName, 'r').readlines()
+                found=True
+                return file
+            except:
+                i+=1
+                #break to avoid infinite loop 
+        if found==False:
+            file = open(case + '/' + str(int(time)) + '/' + var,'r').readlines()
+            return file
+
 def getRANSScalar(case, time, var):
-    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+    file = getRANSfile(case, time, var)
+
+#    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
     #lines=0
     tmp = []
     tmp2 = 10**12
@@ -111,25 +158,22 @@ def getRANSScalar(case, time, var):
             tmp = i + 1
             tmp2 = i + 3
             #cc = True
-            print tmp, tmp2
+            #print(tmp, tmp2)
         elif i==tmp:
             maxLines = int(line.split()[0])
             maxIter  = tmp2 + maxLines
             v = np.zeros([1,maxLines])
-            print maxLines, maxIter
+            ##print(maxLines, maxIter)
         elif i>=tmp2 and i<maxIter:
             #tmp3=i
             linei = line.split()
             #v[:,j] = [float(linei[0].split('(')[1]), float(linei[1]), float(linei[2].split(')')[0])]
             v[:,j] = [float(linei[0])]
             j += 1
-
-
-
     return v
 
 def getRANSVector(case, time, var):
-    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+    file = getRANSfile(case,time,var)
     #lines=0
     tmp = []
     tmp2 = 10**12
@@ -142,12 +186,12 @@ def getRANSVector(case, time, var):
             tmp = i + 1
             tmp2 = i + 3
             #cc = True
-            #print tmp, tmp2
+            ##print(tmp, tmp2)
         elif i==tmp:
             maxLines = int(line.split()[0])
             maxIter  = tmp2 + maxLines
             v = np.zeros([3,maxLines])
-           # print maxLines, maxIter
+           # #print(maxLines, maxIter)
         elif i>=tmp2 and i<maxIter:
             linei = line.split()
             v[:,j] = [float(linei[0].split('(')[1]), float(linei[1]), float(linei[2].split(')')[0])]
@@ -155,7 +199,8 @@ def getRANSVector(case, time, var):
     return v
 
 def getRANSTensor(case, time, var):
-    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+    file = getRANSfile(case,time,var)
+#    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
     #file = open('wavyWall_Re6850_komegaSST_4L_2D/20000/gradU','r').readlines()
     #lines=0
     tmp = []
@@ -169,12 +214,12 @@ def getRANSTensor(case, time, var):
             tmp = i + 1
             tmp2 = i + 3
             #cc = True
-            print tmp, tmp2
+            #print(tmp, tmp2)
         elif i==tmp:
             maxLines = int(line.split()[0])
             maxIter  = tmp2 + maxLines
             v = np.zeros([3,3,maxLines])
-            print maxLines, maxIter
+            #print(maxLines, maxIter)
         elif i>=tmp2 and i<maxIter:
             #tmp3=i
             linei = line.split()
@@ -187,7 +232,8 @@ def getRANSTensor(case, time, var):
     return v
 
 def getRANSSymmTensor(case, time, var):
-    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+    file = getRANSfile(case,time,var)
+#    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
     #file = open('wavyWall_Re6850_komegaSST_4L_2D/20000/gradU','r').readlines()
     #lines=0
     tmp = []
@@ -201,12 +247,12 @@ def getRANSSymmTensor(case, time, var):
             tmp = i + 1
             tmp2 = i + 3
             #cc = True
-            print tmp, tmp2
+            #print(tmp, tmp2)
         elif i==tmp:
             maxLines = int(line.split()[0])
             maxIter  = tmp2 + maxLines
             v = np.zeros([3,3,maxLines])
-            print maxLines, maxIter
+            #print(maxLines, maxIter)
         elif i>=tmp2 and i<maxIter:
             #tmp3=i
             linei = line.split()
@@ -222,13 +268,13 @@ def getRANSPlane(mesh, dimension, nx, ny, t='vector',a='yesAve'):
     xRANS = np.zeros([nx,ny])
     yRANS = np.zeros([nx,ny])
     zRANS = np.zeros([nx,ny])
-    print mesh.shape
+    #print(mesh.shape)
 
     if a=='yesAve':
         if t=='vector':
             if dimension=='3D':
                 for i in range(ny):
-                    print 'hello'
+                    print("3D")
             # xRANS[:,i] = mesh[0,i*256*128:256+i*256*128]
             # yRANS[:,i] = mesh[1,i*256*128:256+i*256*128]
             # zRANS[:,i] = mesh[2,i*256*128:256+i*256*128]
@@ -272,13 +318,13 @@ def getRANSField(mesh, dimension, nx, ny, nz, t='vector'):
     xRANS = np.zeros([nx,ny*2,nz])
     yRANS = np.zeros([nx,ny*2,nz])
     zRANS = np.zeros([nx,ny*2,nz])
-    print mesh.shape
+    #print(mesh.shape)
 
     kk=0
 
     if t=='vector':
         if dimension=='3D':
-            print "3D"
+            print("3D")
             for j in range(nz):
                 for i in range(ny):
                     xRANS[:,i,j] = mesh[0,i*nx+nx*ny*(j+kk*4):nx+i*nx+nx*ny*(j+kk*4)]
@@ -337,7 +383,7 @@ def calcEigenvalues(tau, k):
     elif len(tau.shape)==4:
         l=tau.shape[2]
         l2=tau.shape[3]
-        print l,l2
+        #print(l,l2)
         tauAni = np.zeros([3,3,l,l2])
         for i in range(l):
             for j in range(l2):
@@ -370,7 +416,7 @@ def calcEigenvalues2(tau, k):
     elif len(tau.shape)==4:
         l=tau.shape[2]
         l2=tau.shape[3]
-        print l,l2
+        #print(l,l2)
         tauAni = np.zeros([3,3,l,l2])
         for i in range(l):
             for j in range(l2):
@@ -439,7 +485,7 @@ def calcFracAnisotropy(tau):
     elif len(tau.shape)==4:
         l=tau.shape[2]
         l2=tau.shape[3]
-        print l,l2
+        #print(l,l2)
 
         eigVal = np.zeros([3,l,l2])
         for i in range(l):
@@ -447,7 +493,7 @@ def calcFracAnisotropy(tau):
                 a,b=np.linalg.eig(tau[:,:,i,j])
                 eigVal[:,i,j]=sorted(a, reverse=True)
 
-        print l, l2
+        #print(l,l2)
         #eigValMean = eigVal.mean(0)
         FA = np.zeros([l,l2])
         for i in range(l):
@@ -497,8 +543,10 @@ def calcInitialConditions(U, turbulenceIntensity, turbLengthScale, nu, d, D):
     
     return tmp
 
-def getRANSVectorBoundary(case, time, var, selected_wall):
-    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+
+def getRANSScalarBoundary(case, time, var, selected_wall):
+    file = getRANSfile(case,time,var)
+#    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
 
     write_line = False
     start_writing_counter = 0
@@ -513,14 +561,50 @@ def getRANSVectorBoundary(case, time, var, selected_wall):
 
         if (linei[0] == selected_wall):
             write_line = True
-            #print "Selected wall is " + linei[0]
+            print("Selected wall is " + linei[0])
 
+        if (write_line == True):
+            try: # Defines the number of elements based on the OpenFOAM dimensions located in the actual file.
+                int(linei[0])
+                start_writing_counter = i
+#                print("Getting closer, the number of nodes is " + str(linei[0]))
+                v = np.zeros([1, int(str(linei[0]))])
+                nodes_number = int(str(linei[0]))
+            except:
+                pass
+        if (start_writing_counter>0 and i>=start_writing_counter+2):
+            if (i>=start_writing_counter+2+nodes_number):
+                break
+#            print('nodes number: ' + str(nodes_number))
+            v[:, j] =  [float(linei[0])]
+            j += 1
+
+    return v
+
+def getRANSVectorBoundary(case, time, var, selected_wall):
+    file = getRANSfile(case,time,var)
+#    file = open(case + '/' + str(time) + '/' + var,'r').readlines()
+
+    write_line = False
+    start_writing_counter = 0
+    v = []
+    j = 0
+    for i, line in enumerate(file):
+        linei = line.split()
+        try: # For empty lines.
+            linecool = linei[0]
+        except: # If there is an empty line, break the loop.
+            continue
+
+        if (linei[0] == selected_wall):
+            write_line = True
+            print("Selected wall is " + linei[0])
 
         if (write_line == True):
             try: # Defines the number of elements based on the OpenFOAM dimensions located in the actual file.
                 float(linei[0])
                 start_writing_counter = i
-                #print "Getting closer, the number of nodes is " + str(linei[0])
+#                print("Getting closer, the number of nodes is " + str(linei[0]))
                 v = np.zeros([3, int(str(linei[0]))])
                 nodes_number = int(str(linei[0]))
             except:
@@ -529,6 +613,7 @@ def getRANSVectorBoundary(case, time, var, selected_wall):
         if (start_writing_counter>0 and i>=start_writing_counter+2):
             if (i>=start_writing_counter+2+nodes_number):
                 break
+#            print('nodes number: ' + str(nodes_number))
             v[:, j] = [float(linei[0].split('(')[1]), float(linei[1]), float(linei[2].split(')')[0])]
             j += 1
 
@@ -566,6 +651,20 @@ def interpDNSOnRANS(dataDNS, meshRANS):
 
     return data
 
+def interpUnstructured(dataLaminar, plotMesh):
+    names = dataLaminar.keys()
+    data = {}
+#    xy = np.array([data['mesh'][0],data['mesh'][1]]).T
+    for var in names:
+        if not var == 'mesh':
+            data[var] = interp.griddata(
+                (dataLaminar['mesh'][0].T[0], dataLaminar['mesh'][1].T[0]), 
+                dataLaminar[var].T[0], 
+                (plotMesh[0], plotMesh[1]), 
+                method='linear')
+            data[var] = np.nan_to_num(data[var])
+    return data
+
 def writeP(case, time, var, data):
     # file = open(case + '/' + str(time) + '/' + var,'r').readlines()
     copy(case + '/' + str(time) + '/' + var, case + '/' + str(time) + '/' + var)
@@ -579,7 +678,7 @@ def writeP(case, time, var, data):
     cc = False
     j = 0
     file_path = case + '/' + str(time) + '/' + var
-    print file_path
+    #print(file_path)
     fh, abs_path = mkstemp()
     with open(abs_path, 'w') as new_file:
         with open(file_path) as file:
@@ -594,16 +693,16 @@ def writeP(case, time, var, data):
                     tmp2 = i + 3
                     cc = True
                     new_file.write(line)
-                    print tmp, tmp2
+                    #print(tmp, tmp2)
 
 
                 elif i == tmp:
-                    print line.split()
+                    #print(line.split())
                     maxLines = int(line.split())
                     maxIter = tmp2 + maxLines
                     # v = np.zeros([3,3,maxLines])
                     new_file.write(line)
-                    print maxLines, maxIter
+                    #print(maxLines, maxIter)
 
                 elif i > tmp and i < tmp2:
                     new_file.write(line)
@@ -625,13 +724,13 @@ def writeP(case, time, var, data):
                 elif i >= maxIter:
                     new_file.write(line)
 
-    close(fh)
+    fh.close()
     remove(file_path)
     move(abs_path, file_path)
 
     # return v
 
-def read_RANS_mesh(case_dir, nx_RANS, ny_RANS, read_cell_surface=False):
+def read_RANS_mesh(case_dir, nx_RANS, ny_RANS, endTime, read_cell_surface=False):
     """
     Read RANS mesh from OpenFOAM case.
 
@@ -653,9 +752,9 @@ def read_RANS_mesh(case_dir, nx_RANS, ny_RANS, read_cell_surface=False):
         k : y-divisions.
     """
     meshRANSlist = np.zeros((3, nx_RANS*ny_RANS))
-    meshRANSlist[0] = getRANSScalar(case_dir, 0, 'ccx')
-    meshRANSlist[1] = getRANSScalar(case_dir, 0, 'ccy')
-    meshRANSlist[2] = getRANSScalar(case_dir, 0, 'ccz')
+    meshRANSlist[0] = getRANSScalar(case_dir, endTime, 'Cx')
+    meshRANSlist[1] = getRANSScalar(case_dir, endTime, 'Cy')
+    meshRANSlist[2] = getRANSScalar(case_dir, endTime, 'Cz')
     meshRANS =        getRANSPlane(meshRANSlist, '2D', nx_RANS,
                                    ny_RANS, 'vector')
 
@@ -716,7 +815,8 @@ def interp_data_cart_RANS(meshRANS, nx_RANS, ny_RANS, data, variables, dx_cart=0
             data[var+'_cart'] = np.nan_to_num(data[var+'_cart'])
     return data
 
-def postprocessing_OpenFOAM(case_dir, solver):
+
+def postprocessing_OpenFOAM(case_dir, solver, options=[]):
     """
     Perform post-processing operations for OpenFOAM case.
 
@@ -733,32 +833,42 @@ def postprocessing_OpenFOAM(case_dir, solver):
     -------
 
     """
+    # write the options
     os.chdir(case_dir)
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + solver
-        + ' -postProcess -func R > log_R',
-          shell=True)
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + solver
-        + ' -postProcess -func vorticity > log_vorticity',
-          shell=True)
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + solver
-        + ' -postProcess -field U -func "grad(U)" -latestTime > log_gradU',
-          shell=True)
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + solver
-        + ' -postProcess -func Q -latestTime > log_Q',
-          shell=True)
-    # Auxiliar calculations for y+.
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + solver
-        + ' -postProcess -func wallShearStress > log_wallShearStress',
-          shell=True)
+    for option in options:    
+        subprocess.call(solver
+            + ' -postProcess -func ' + option + ' > ' + option + '.log',
+              shell=True)
 
     # Write cell centres components.
-    subprocess.call(case_dir + '/pre_processing.bash '
-        + ' writeCellCentres > log_CellCentres',
-          shell=True)
+    subprocess.call(solver
+            + ' -postProcess -func writeCellCentres -time 0 > writeCellCentres.log',
+              shell=True)
 
     return ()
+
+
+def findNN(xy, point):
+    """
+    Find the index of the nearest neighbour of an array. 
+    """
+    mytree = spatial.cKDTree(xy)
+    dist, indices = mytree.query(point)
+    return indices
+
+def sortPatch(patchPoints):
+    """ 
+    Sort the points on a patch by the nearest neighbour approach.
+    """
+    dummy = patchPoints
+    for i in range(len(patchPoints)):
+        if i==0:
+            index = 0
+            patchPoints[i, :] = dummy[index,:]
+        else:
+            findPoint = patchPoints[i-1]
+            index = findNN(dummy, findPoint)
+            patchPoints[i, :] = dummy[index,:]       
+        # delete index from the dummy array to avoid points read twice.
+        dummy = np.delete(dummy, index, axis=0)
+    return patchPoints
