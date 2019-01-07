@@ -13,7 +13,7 @@ from scipy import spatial
 import os
 import subprocess
 
-def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshRANS=None):
+def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshRANS=None, scalars=[]):
     """
     Read data from RANS OpenFOAM case and store it in a dictionary.
 
@@ -85,7 +85,14 @@ def read_RANS_data(case_dir, nx_RANS, ny_RANS, endTime, cart_interp=False, meshR
         data_RANS['Q'] = Q[0]
     except:
         print("Q not found!")
-
+    for scalar in scalars:
+        try:
+            scalarlist        = getRANSScalar(case_dir, endTime, scalar)
+            scalarl           = getRANSPlane(scalarlist, '2D', nx_RANS, ny_RANS, 'scalar')
+            data_RANS[scalar] = scalarl[0]
+        except:
+            print("%s not found!" % scalar)
+    
     # Perform interpolation in Cartesian mesh.
     variables = ['um', 'vm', 'wm', 'pm', 'uu', 'vv', 'ww', 'uv', 'k']
     if cart_interp:
@@ -651,7 +658,7 @@ def interpDNSOnRANS(dataDNS, meshRANS):
 
     return data
 
-def interpUnstructured(dataLaminar, plotMesh):
+def interpUnstructured(dataLaminar, plotMesh, method='linear'):
     names = dataLaminar.keys()
     data = {}
 #    xy = np.array([data['mesh'][0],data['mesh'][1]]).T
@@ -661,9 +668,47 @@ def interpUnstructured(dataLaminar, plotMesh):
                 (dataLaminar['mesh'][0].T[0], dataLaminar['mesh'][1].T[0]), 
                 dataLaminar[var].T[0], 
                 (plotMesh[0], plotMesh[1]), 
-                method='linear')
+                method=method)
             data[var] = np.nan_to_num(data[var])
     return data
+
+def interpolateToMGrid(gb, spacing, cellCentres, data):
+    """
+    Interpolate the grid from an unstructured mesh to a meshgrid. 
+    Provide the following arguments:
+        gridBoundaries: n*2 dimensional array with the bounding box.
+        spacing. Mesh size of the new mesh. 
+        cellCentres. 3d array with the locations of the the cells. 
+        data as a dictionary with the relevant fields. 
+        
+        Patch is hardcoded for now. 
+    """
+    if gb.size==6:
+        plotMesh = np.mgrid[gb[0,0]:gb[0,1]+spacing:spacing, gb[1,0]:gb[1,1]+spacing:spacing, gb[2,0]:gb[2,1]+spacing:spacing]
+    elif gb.size==4:
+        plotMesh = np.mgrid[gb[0,0]:gb[0,1]+spacing:spacing, gb[1,0]:gb[1,1]+spacing:spacing]
+    
+    fields = list(data.keys())
+    plotData = {}
+    
+    patch = b'wing'
+    if (type(data[fields[0]]) is dict):
+        for field in fields:
+            data[field] = data[field][patch][b'value']
+        
+    if (type(cellCentres) is dict):    
+        cellCentres = cellCentres[patch][b'value']
+
+    for field in fields:
+            print('Interpolating field ' + field)
+            plotData[field] = interp.griddata(
+                                        cellCentres,
+                                        (data[field]),
+                                        (plotMesh[0], plotMesh[1], plotMesh[2]),
+                                        method='linear'
+                                       )
+    return plotMesh, plotData
+    
 
 def writeP(case, time, var, data):
     # file = open(case + '/' + str(time) + '/' + var,'r').readlines()
@@ -835,15 +880,18 @@ def postprocessing_OpenFOAM(case_dir, solver, options=[]):
     """
     # write the options
     os.chdir(case_dir)
-    for option in options:    
-        subprocess.call(solver
-            + ' -postProcess -func ' + option + ' > ' + option + '.log',
-              shell=True)
+    for option in options:
+        if option+'.log' in os.listdir():
+            print(option + ' is already postProcessed. Remove logfile and run again to overwrite.')
+        else:
+            subprocess.call(solver
+                + ' -postProcess -func ' + option + ' > ' + option + '.log',
+                  shell=True)
 
     # Write cell centres components.
-    subprocess.call(solver
-            + ' -postProcess -func writeCellCentres -time 0 > writeCellCentres.log',
-              shell=True)
+#    subprocess.call(solver
+#            + ' -postProcess -func writeCellCentres -time 0 > writeCellCentres.log',
+#              shell=True)
 
     return ()
 
@@ -858,15 +906,20 @@ def findNN(xy, point):
 
 def sortPatch(patchPoints):
     """ 
-    Sort the points on a patch by the nearest neighbour approach.
+    Sort the points on a patch by the nearest neighbour approach. Additional predictor added. 
     """
     dummy = patchPoints
+    dP = np.array([0,0])
     for i in range(len(patchPoints)):
         if i==0:
             index = 0
             patchPoints[i, :] = dummy[index,:]
         else:
-            findPoint = patchPoints[i-1]
+            if i==1:
+                dP = np.array([0,0])
+            else:
+                dP = np.array(patchPoints[i-1]) - np.array(patchPoints[i-2])
+            findPoint = patchPoints[i-1] + 0.5*dP
             index = findNN(dummy, findPoint)
             patchPoints[i, :] = dummy[index,:]       
         # delete index from the dummy array to avoid points read twice.

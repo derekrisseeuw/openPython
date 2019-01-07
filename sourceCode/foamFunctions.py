@@ -237,13 +237,26 @@ def getTimeFolders(foamCase, returnType="string"):
         return timeFoldersNum
 
 def findNearestTime(foamCase, time):
-    times = np.array(getTimeFolders(foamCase,returnType="float"))
+    """
+    Openfoam writes integer timesteps by default as an integer
+    """
+    times = list(getTimeFolders(foamCase,returnType="float"))
+    strTimes = np.array(getTimeFolders(foamCase,returnType="string"))
     if time in times:
-        return time
+        try:
+            intTime = int(strTimes[times.index(time)])
+            return int(time)
+        except:
+            return time
     else:
-        nearestTime = times[np.argmin(abs(times-time))]
+        nearestTime = times[np.argmin(np.abs(np.array(times)-time))]
         print("Time %f is not available, choosing nearest time %f" % ( time, nearestTime))
-        return nearestTime
+        try:
+            intTime = int(strTimes[times.index(nearestTime)])
+            return int(nearestTime)
+        except:
+            return nearestTime
+    
         
 def createCase(foamCase, baseCase):
     """

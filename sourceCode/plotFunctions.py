@@ -5,6 +5,10 @@ import numpy as np
 from PyFOAM_custom.PyFOAM_custom import getRANSVectorBoundary, sortPatch
 import matplotlib.path as mpltPath
 from postProcessing import getPeriod
+import matplotlib as mpl
+from matplotlib.colors import ListedColormap
+from scipy.interpolate import interp1d
+
 
 def latexify(fig_width=None, fig_height=None, columns=2, type='line',
              width_multiplier=1, height_multiplier=1):
@@ -62,7 +66,7 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
         fig_height = MAX_HEIGHT_INCHES
 
     params = {'backend': 'ps',
-              'text.latex.preamble': [r'\usepackage{gensymb}'],
+              'text.latex.preamble': [r'\usepackage{gensymb, amsmath, siunitx}'],
               'axes.labelsize': 10,
               'axes.titlesize': 10,
               'font.size': 10,
@@ -84,7 +88,7 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
               'font.family': 'serif',
               'lines.linewidth': 0.5,
               'grid.linewidth': 0.5,
-              'grid.linestyle': 'dotted',
+              'grid.linestyle': 'None', #'dotted',
               'figure.autolayout': True,         # added to allways show the axis
     }
 
@@ -111,17 +115,17 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
     elif type=='contour':
         params_add = {
             'xtick.major.top' : False,
-              'xtick.major.bottom' : False,
-              'ytick.major.left' : False,
+              'xtick.major.bottom' : True,
+              'ytick.major.left' : True,
               'ytick.major.right' : False,
               'xtick.minor.top' : False,
               'xtick.minor.bottom' : False,
               'ytick.minor.left' : False,
               'ytick.minor.right' : False,
               'lines.linewidth': 0.,
-              'axes.spines.bottom': False,
+              'axes.spines.bottom': True,
               'axes.spines.top': False,
-              'axes.spines.left': False,
+              'axes.spines.left': True,
               'axes.spines.right': False,
               
               'axes.xmargin': 0.1,
@@ -130,23 +134,19 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
         matplotlib.rcParams.update(params_add)
 
     return ()
-    
-
-def my_formatter_fun(x, p):
-    scale_pow=2
-    return "%.2f" % (x * (10 ** scale_pow))
 
 def linePlot(x, y, title=None, xlabel=None, ylabel=None, columns=2, 
-             dashed=False, plotType='plot', axisStyle='sci'):
+             dashed=False, plotType='plot', axisStyle='sci', mark=None, height_multiplier=1.):
     #plt.close('all')
 #    from functions import latexify
-    latexify(columns=columns, type='line', width_multiplier=1.03, height_multiplier=1)
-
+    latexify(columns=columns, type='line', width_multiplier=1.03, height_multiplier=height_multiplier)
+    
     if plotType=='plot':
         if dashed==True:
             figName = plt.plot(x, y, '--')
         else:
             figName = plt.plot(x, y)
+        plt.ticklabel_format(style=axisStyle, axis='both', scilimits=(0,1))
     elif plotType=='semilogx':
         if dashed==True:
             figName = plt.semilogx(x, y, '--')
@@ -162,10 +162,11 @@ def linePlot(x, y, title=None, xlabel=None, ylabel=None, columns=2,
             figName = plt.loglog(x, y, '--')
         else:
             figName = plt.loglog(x, y)      
+    plt.setp(figName[0],  
+             marker=mark,
+             markersize=4.,
+             fillstyle='none')
     
-    
-    plt.ticklabel_format(style=axisStyle, axis='x', scilimits=(0,0))
-    plt.ticklabel_format(style=axisStyle, axis='y', scilimits=(0,0))
     
     if title is not None:
         plt.title(title)        
@@ -182,16 +183,19 @@ def pointPlot(x, y, mark='p', title=None, xlabel=None, ylabel=None, columns=2,
     latexify(columns=columns, type='line', width_multiplier=1.03, height_multiplier=1)
 
     if plotType=='plot':
-        figName, = plt.plot(x, y, mark, markersize=.2, linestyle='None')
+        figName, = plt.plot(x, y, mark, linestyle='None')
+        plt.ticklabel_format(style=axisStyle, axis='x') #,  scilimits=(0,0))
+        plt.ticklabel_format(style=axisStyle, axis='y') #, scilimits=(0,0))
     elif plotType=='semilogx':
-        figName, = plt.semilogx(x, y, 'p')    
+        figName, = plt.semilogx(x, y, mark, linestyle='None')
     elif plotType=='semilogy':
-        figName, = plt.semilogy(x, y, 'p') 
+        figName, = plt.semilogy(x, y, mark, linestyle='None')
     elif plotType=='loglog':
-        figName, = plt.loglog(x, y, 'p') 
-        
-    plt.ticklabel_format(style=axisStyle, axis='x', scilimits=(0,0))
-    plt.ticklabel_format(style=axisStyle, axis='y', scilimits=(0,0))
+        figName, = plt.loglog(x, y, mark, linestyle='None') 
+    
+    plt.setp(figName[0],  
+         markersize=4.,
+         fillstyle='none')
 
     if title is not None:
         plt.title(title)
@@ -223,10 +227,23 @@ def contourPlot(x, y, z, title=None, xlabel=None, ylabel=None, columns=2, levels
     
     return(figName)
 
+def addOpacity(cmap, opacityArray, plotLevels):
+    """ 
+    This function adds opacity to a colorbar
+    Arguments: cmap
+    opacity numpy array with x-range and opacity function
+    """
+    newCmap = cmap(np.arange(cmap.N))  # cmap.N
+    x = opacityArray[0]
+    y = opacityArray[1]
+    xmap = np.linspace(np.min(x), np.max(x), cmap.N)
+    ymap = np.interp(xmap, x, y)
+    newCmap[:,-1] = ymap  
+    return ListedColormap(newCmap)
 
 def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
               cmap_name=None, filename="contourPlot", columns=2,
-              contours_folder="figures"):
+              contours_folder="figures", opacity=None):
     """
     Plot filled contours of a variable in RANS mesh.
     Parameters
@@ -240,9 +257,9 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     plot_levels : integer
         Number of levels for the contours.
     cmap_name : string
-        Name of the colormap.
+        Name of the colormap. 
     cbar_label : string
-        Label for the colorbar.
+        Label for the colorbar. If none, no colorbar is plotted. 
     filename : string
         Name of the file containing the contour plot.
     contours_folder : string
@@ -261,6 +278,12 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     plotRange = plot_limits[1]  - plot_limits[0] 
     if cmap_name is None:
         cmap_name = "jet"
+        
+    if opacity is not None:
+        cmap = mpl.cm.get_cmap(cmap_name)
+        cmap = addOpacity(cmap, opacity, plot_levels)
+    else:
+        cmap = cmap_name
     
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -268,7 +291,7 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     plot_levels_array = np.linspace(plot_limits[0], plot_limits[1],
                                     plot_levels)
     plot_fig = ax.contourf(meshx, meshy, var, plot_levels_array,
-                           extend="both", cmap=cmap_name)
+                           extend="both", cmap=cmap)
 #    ax.axis((np.min(meshx), np.max(meshx),
 #             0, np.max(meshy)))
 
@@ -276,8 +299,11 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     # Remove ticks but keep labels.
     ax.tick_params(top=False, bottom=False, left=False, right=False,
                    labelleft=True, labelbottom=True)
-    ax.set_xlabel(r'$x [m]$')
-    ax.set_ylabel(r'$y [m]$')
+#    ax.set_xlabel(r'$x/c [-]$')
+#    ax.set_ylabel(r'$y/c [-]$')
+    
+    ax.set_xlabel(r'r/R [-]')
+    ax.set_ylabel(r'$t^*$ [-]')
     ax.xaxis.labelpad -= 4
 #    print("plotLimits are: " + str(plot_limits))
     # Move the label of x axis a bit up.
@@ -302,31 +328,32 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
             labels[i] = ("%.1f" % (numLabels[i]/float(10**pow)) + r"$\cdot 10^{%i}$" % pow)
     else:            
         labels = np.round(np.linspace(m0, m4, num_ticks), 3) 
-        
-    cbar = fig.colorbar(plot_fig,
-                        orientation='horizontal', shrink=0.6)
-
-    cbar.set_label(cbar_label)
-    cbar.set_ticks(ticks)
-    cbar.set_ticklabels(labels)
     
-    # Control the lines inside the colorbar.
-    if columns==1:
-        tickSize = 9.2
-    else:
-        tickSize = 5    
-    cbar.ax.tick_params(colors='k', size=tickSize, direction='in',
-                        zorder=10, width=0.3)
-    # Move the colorbar slightly up.
-    l, b, w, h = plt.gca().get_position().bounds
-    ll, bb, ww, hh =cbar.ax.get_position().bounds
-    if columns==1:
-        cbar.ax.set_position([ll, b-.55, ww, h*0.01])
-    else:
-        cbar.ax.set_position([ll, b-.35, ww, h*0.01])
-        
-    # Set linewidths for colorbar and axes box.
-    cbar.outline.set_linewidth(0.5)
+    if cbar_label is not None:
+        cbar = fig.colorbar(plot_fig,
+                            orientation='horizontal', shrink=0.6)
+    
+        cbar.set_label(cbar_label)
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels(labels)
+    
+        # Control the lines inside the colorbar.
+        if columns==1:
+            tickSize = 9.2
+        else:
+            tickSize = 5    
+        cbar.ax.tick_params(colors='k', size=tickSize, direction='in',
+                            zorder=10, width=0.3)
+        # Move the colorbar slightly up.
+        l, b, w, h = plt.gca().get_position().bounds
+        ll, bb, ww, hh = cbar.ax.get_position().bounds
+        if columns==1:
+            cbar.ax.set_position([ll, b-.55, ww, h*0.01])
+        else:
+            cbar.ax.set_position([ll, b-.35, ww, h*0.01])
+            
+        # Set linewidths for colorbar and axes box.
+        cbar.outline.set_linewidth(0.5)
 #    [i.set_linewidth(0.15) for i in ax.spines.itervalues()]
     return fig
 #    fig.savefig(contours_folder + '/' + filename + '.pdf',
@@ -391,6 +418,40 @@ def maskPatch(mesh, Z, patch, case_dir, time):
     Z[interiorPatch] = np.nan #np.ma.masked
     return Z
 
+def getCustomCmap(x, r, g, b, N = 256):
+    customCmap =  np.ones((N, 4))
+    xmap = np.linspace(np.min(x), np.max(x), N)
+    interp ='linear'
+    fr, fg, fb = interp1d(x, r, interp), interp1d(x, g, interp), interp1d(x, b, interp)
+    customCmap[ :,0] = fr(xmap)
+    customCmap[ :,1] = fg(xmap)
+    customCmap[ :,2] = fb(xmap)
+    return customCmap
+
+def paraviewJet(N = 256):
+    x = np.array([-1, -0.777778, -0.269841, -0.015873,0.238095, 0.746032, 1])
+    r = np.array([0, 0, 0, 0.5, 1, 1, 0.5])
+    g = np.array([0, 0, 1, 1, 1, 0, 0])
+    b = np.array([0.5625,  1, 1, 0.5, 0, 0, 0 ])
+    return getCustomCmap(x, r, g, b, N)
+
+def paraviewRainbow(N = 256):
+    x = np.array([ -1.,-0.5, 0., 0.5, 1.])
+    r = np.array([0,0,0,1,1])
+    g = np.array([0,1,1,1,0])
+    b = np.array([1.,1,0,0, 0])
+    return getCustomCmap(x, r, g, b, N)
+
+def paraviewCoolwarm(N = 256):
+    x = np.array([0, 1])
+    r = np.array([0,1])
+    g = np.array([0.,0])
+    b = np.array([1., 0])
+    return getCustomCmap(x, r, g, b, N) 
+
+
+
+
     
 if __name__ == "__main__":
 #    from functions import linePlot
@@ -406,346 +467,4 @@ if __name__ == "__main__":
     plt.show()
     
     
-    
-'''
-RcParams({'_internal.classic_mode': False,
-          'agg.path.chunksize': 0,
-          'animation.avconv_args': [],
-          'animation.avconv_path': 'avconv',
-          'animation.bitrate': -1,
-          'animation.codec': 'h264',
-          'animation.convert_args': [],
-          'animation.convert_path': 'convert',
-          'animation.embed_limit': 20.0,
-          'animation.ffmpeg_args': [],
-          'animation.ffmpeg_path': 'ffmpeg',
-          'animation.frame_format': 'png',
-          'animation.html': 'none',
-          'animation.html_args': [],
-          'animation.writer': 'ffmpeg',
-          'axes.autolimit_mode': 'data',
-          'axes.axisbelow': 'line',
-          'axes.edgecolor': 'k',
-          'axes.facecolor': 'w',
-          'axes.formatter.limits': [-7, 7],
-          'axes.formatter.min_exponent': 0,
-          'axes.formatter.offset_threshold': 4,
-          'axes.formatter.use_locale': False,
-          'axes.formatter.use_mathtext': False,
-          'axes.formatter.useoffset': True,
-          'axes.grid': False,
-          'axes.grid.axis': 'both',
-          'axes.grid.which': 'major',
-          'axes.hold': None,
-          'axes.labelcolor': 'k',
-          'axes.labelpad': 4.0,
-          'axes.labelsize': 10.0,
-          'axes.labelweight': 'normal',
-          'axes.linewidth': 0.8,
-          'axes.prop_cycle': cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']),
-          'axes.spines.bottom': False,
-          'axes.spines.left': False,
-          'axes.spines.right': False,
-          'axes.spines.top': True,
-          'axes.titlepad': 6.0,
-          'axes.titlesize': 10.0,
-          'axes.titleweight': 'normal',
-          'axes.unicode_minus': True,
-          'axes.xmargin': 0.05,
-          'axes.ymargin': 0.05,
-          'axes3d.grid': True,
-          'backend': 'ps',
-          'backend.qt4': None,
-          'backend.qt5': None,
-          'backend_fallback': True,
-          'boxplot.bootstrap': None,
-          'boxplot.boxprops.color': 'k',
-          'boxplot.boxprops.linestyle': '-',
-          'boxplot.boxprops.linewidth': 1.0,
-          'boxplot.capprops.color': 'k',
-          'boxplot.capprops.linestyle': '-',
-          'boxplot.capprops.linewidth': 1.0,
-          'boxplot.flierprops.color': 'k',
-          'boxplot.flierprops.linestyle': 'none',
-          'boxplot.flierprops.linewidth': 1.0,
-          'boxplot.flierprops.marker': 'o',
-          'boxplot.flierprops.markeredgecolor': 'k',
-          'boxplot.flierprops.markerfacecolor': 'none',
-          'boxplot.flierprops.markersize': 6.0,
-          'boxplot.meanline': False,
-          'boxplot.meanprops.color': 'C2',
-          'boxplot.meanprops.linestyle': '--',
-          'boxplot.meanprops.linewidth': 1.0,
-          'boxplot.meanprops.marker': '^',
-          'boxplot.meanprops.markeredgecolor': 'C2',
-          'boxplot.meanprops.markerfacecolor': 'C2',
-          'boxplot.meanprops.markersize': 6.0,
-          'boxplot.medianprops.color': 'C1',
-          'boxplot.medianprops.linestyle': '-',
-          'boxplot.medianprops.linewidth': 1.0,
-          'boxplot.notch': False,
-          'boxplot.patchartist': False,
-          'boxplot.showbox': True,
-          'boxplot.showcaps': True,
-          'boxplot.showfliers': True,
-          'boxplot.showmeans': False,
-          'boxplot.vertical': True,
-          'boxplot.whiskerprops.color': 'k',
-          'boxplot.whiskerprops.linestyle': '-',
-          'boxplot.whiskerprops.linewidth': 1.0,
-          'boxplot.whiskers': 1.5,
-          'contour.corner_mask': True,
-          'contour.negative_linestyle': 'dashed',
-          'datapath': '/home/derek/anaconda3/lib/python3.6/site-packages/matplotlib/mpl-data',
-          'date.autoformatter.day': '%Y-%m-%d',
-          'date.autoformatter.hour': '%m-%d %H',
-          'date.autoformatter.microsecond': '%M:%S.%f',
-          'date.autoformatter.minute': '%d %H:%M',
-          'date.autoformatter.month': '%Y-%m',
-          'date.autoformatter.second': '%H:%M:%S',
-          'date.autoformatter.year': '%Y',
-          'docstring.hardcopy': False,
-          'errorbar.capsize': 0.0,
-          'examples.directory': '',
-          'figure.autolayout': True,
-          'figure.constrained_layout.h_pad': 0.04167,
-          'figure.constrained_layout.hspace': 0.02,
-          'figure.constrained_layout.use': False,
-          'figure.constrained_layout.w_pad': 0.04167,
-          'figure.constrained_layout.wspace': 0.02,
-          'figure.dpi': 72.0,
-          'figure.edgecolor': 'white',
-          'figure.facecolor': 'white',
-          'figure.figsize': [5.598, 0.9180719999999999],
-          'figure.frameon': True,
-          'figure.max_open_warning': 20,
-          'figure.subplot.bottom': 0.125,
-          'figure.subplot.hspace': 0.2,
-          'figure.subplot.left': 0.125,
-          'figure.subplot.right': 0.9,
-          'figure.subplot.top': 0.88,
-          'figure.subplot.wspace': 0.2,
-          'figure.titlesize': 'large',
-          'figure.titleweight': 'normal',
-          'font.cursive': ['Apple Chancery',
-                           'Textile',
-                           'Zapf Chancery',
-                           'Sand',
-                           'Script MT',
-                           'Felipa',
-                           'cursive'],
-          'font.family': ['serif'],
-          'font.fantasy': ['Comic Sans MS',
-                           'Chicago',
-                           'Charcoal',
-                           'ImpactWestern',
-                           'Humor Sans',
-                           'xkcd',
-                           'fantasy'],
-          'font.monospace': ['DejaVu Sans Mono',
-                             'Bitstream Vera Sans Mono',
-                             'Computer Modern Typewriter',
-                             'Andale Mono',
-                             'Nimbus Mono L',
-                             'Courier New',
-                             'Courier',
-                             'Fixed',
-                             'Terminal',
-                             'monospace'],
-          'font.sans-serif': ['DejaVu Sans',
-                              'Bitstream Vera Sans',
-                              'Computer Modern Sans Serif',
-                              'Lucida Grande',
-                              'Verdana',
-                              'Geneva',
-                              'Lucid',
-                              'Arial',
-                              'Helvetica',
-                              'Avant Garde',
-                              'sans-serif'],
-          'font.serif': ['DejaVu Serif',
-                         'Bitstream Vera Serif',
-                         'Computer Modern Roman',
-                         'New Century Schoolbook',
-                         'Century Schoolbook L',
-                         'Utopia',
-                         'ITC Bookman',
-                         'Bookman',
-                         'Nimbus Roman No9 L',
-                         'Times New Roman',
-                         'Times',
-                         'Palatino',
-                         'Charter',
-                         'serif'],
-          'font.size': 10.0,
-          'font.stretch': 'normal',
-          'font.style': 'normal',
-          'font.variant': 'normal',
-          'font.weight': 'normal',
-          'grid.alpha': 1.0,
-          'grid.color': '#b0b0b0',
-          'grid.linestyle': 'dotted',
-          'grid.linewidth': 0.5,
-          'hatch.color': 'k',
-          'hatch.linewidth': 1.0,
-          'hist.bins': 10,
-          'image.aspect': 'equal',
-          'image.cmap': 'viridis',
-          'image.composite_image': True,
-          'image.interpolation': 'nearest',
-          'image.lut': 256,
-          'image.origin': 'upper',
-          'image.resample': True,
-          'interactive': True,
-          'keymap.all_axes': ['a'],
-          'keymap.back': ['left', 'c', 'backspace'],
-          'keymap.forward': ['right', 'v'],
-          'keymap.fullscreen': ['f', 'ctrl+f'],
-          'keymap.grid': ['g'],
-          'keymap.grid_minor': ['G'],
-          'keymap.home': ['h', 'r', 'home'],
-          'keymap.pan': ['p'],
-          'keymap.quit': ['ctrl+w', 'cmd+w', 'q'],
-          'keymap.quit_all': ['W', 'cmd+W', 'Q'],
-          'keymap.save': ['s', 'ctrl+s'],
-          'keymap.xscale': ['k', 'L'],
-          'keymap.yscale': ['l'],
-          'keymap.zoom': ['o'],
-          'legend.borderaxespad': 0.5,
-          'legend.borderpad': 0.4,
-          'legend.columnspacing': 2.0,
-          'legend.edgecolor': '0.8',
-          'legend.facecolor': 'inherit',
-          'legend.fancybox': True,
-          'legend.fontsize': 10.0,
-          'legend.framealpha': 0.8,
-          'legend.frameon': True,
-          'legend.handleheight': 0.7,
-          'legend.handlelength': 2.0,
-          'legend.handletextpad': 0.8,
-          'legend.labelspacing': 0.5,
-          'legend.loc': 'best',
-          'legend.markerscale': 1.0,
-          'legend.numpoints': 1,
-          'legend.scatterpoints': 1,
-          'legend.shadow': False,
-          'lines.antialiased': True,
-          'lines.color': 'C0',
-          'lines.dash_capstyle': 'butt',
-          'lines.dash_joinstyle': 'round',
-          'lines.dashdot_pattern': [6.4, 1.6, 1.0, 1.6],
-          'lines.dashed_pattern': [3.7, 1.6],
-          'lines.dotted_pattern': [1.0, 1.65],
-          'lines.linestyle': '-',
-          'lines.linewidth': 0.0,
-          'lines.marker': 'None',
-          'lines.markeredgewidth': 1.0,
-          'lines.markersize': 6.0,
-          'lines.scale_dashes': True,
-          'lines.solid_capstyle': 'projecting',
-          'lines.solid_joinstyle': 'round',
-          'markers.fillstyle': 'full',
-          'mathtext.bf': 'sans:bold',
-          'mathtext.cal': 'cursive',
-          'mathtext.default': 'it',
-          'mathtext.fallback_to_cm': True,
-          'mathtext.fontset': 'dejavusans',
-          'mathtext.it': 'sans:italic',
-          'mathtext.rm': 'sans',
-          'mathtext.sf': 'sans',
-          'mathtext.tt': 'monospace',
-          'patch.antialiased': True,
-          'patch.edgecolor': 'k',
-          'patch.facecolor': 'C0',
-          'patch.force_edgecolor': False,
-          'patch.linewidth': 1.0,
-          'path.effects': [],
-          'path.simplify': True,
-          'path.simplify_threshold': 0.1111111111111111,
-          'path.sketch': None,
-          'path.snap': True,
-          'pdf.compression': 6,
-          'pdf.fonttype': 3,
-          'pdf.inheritcolor': False,
-          'pdf.use14corefonts': False,
-          'pgf.debug': False,
-          'pgf.preamble': [],
-          'pgf.rcfonts': True,
-          'pgf.texsystem': 'xelatex',
-          'polaraxes.grid': True,
-          'ps.distiller.res': 6000,
-          'ps.fonttype': 3,
-          'ps.papersize': 'letter',
-          'ps.useafm': False,
-          'ps.usedistiller': False,
-          'savefig.bbox': None,
-          'savefig.directory': '~',
-          'savefig.dpi': 'figure',
-          'savefig.edgecolor': 'w',
-          'savefig.facecolor': 'w',
-          'savefig.format': 'png',
-          'savefig.frameon': True,
-          'savefig.jpeg_quality': 95,
-          'savefig.orientation': 'portrait',
-          'savefig.pad_inches': 0.1,
-          'savefig.transparent': False,
-          'scatter.marker': 'o',
-          'svg.fonttype': 'path',
-          'svg.hashsalt': None,
-          'svg.image_inline': True,
-          'text.antialiased': True,
-          'text.color': 'k',
-          'text.hinting': 'auto',
-          'text.hinting_factor': 8,
-          'text.latex.preamble': ['\\usepackage{gensymb}'],
-          'text.latex.preview': False,
-          'text.latex.unicode': False,
-          'text.usetex': True,
-          'timezone': 'UTC',
-          'tk.window_focus': False,
-          'toolbar': 'toolbar2',
-          'verbose.fileo': 'sys.stdout',
-          'verbose.level': 'silent',
-          'webagg.address': '127.0.0.1',
-          'webagg.open_in_browser': True,
-          'webagg.port': 8988,
-          'webagg.port_retries': 50,
-          'xtick.alignment': 'center',
-          'xtick.bottom': True,
-          'xtick.color': 'k',
-          'xtick.direction': 'in',
-          'xtick.labelbottom': True,
-          'xtick.labelsize': 9.0,
-          'xtick.labeltop': False,
-          'xtick.major.bottom': False,
-          'xtick.major.pad': 3.5,
-          'xtick.major.size': 4.0,
-          'xtick.major.top': False,
-          'xtick.major.width': 0.5,
-          'xtick.minor.bottom': False,
-          'xtick.minor.pad': 3.4,
-          'xtick.minor.size': 2.0,
-          'xtick.minor.top': False,
-          'xtick.minor.visible': False,
-          'xtick.minor.width': 0.5,
-          'xtick.top': False,
-          'ytick.alignment': 'center_baseline',
-          'ytick.color': 'k',
-          'ytick.direction': 'in',
-          'ytick.labelleft': True,
-          'ytick.labelright': False,
-          'ytick.labelsize': 9.0,
-          'ytick.left': True,
-          'ytick.major.left': False,
-          'ytick.major.pad': 3.5,
-          'ytick.major.right': False,
-          'ytick.major.size': 3.0,
-          'ytick.major.width': 0.5,
-          'ytick.minor.left': False,
-          'ytick.minor.pad': 3.4,
-          'ytick.minor.right': False,
-          'ytick.minor.size': 1.5,
-          'ytick.minor.visible': False,
-          'ytick.minor.width': 0.5,
-          'ytick.right': False})
-'''
+
