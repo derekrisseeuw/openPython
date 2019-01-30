@@ -4,7 +4,7 @@ import matplotlib
 import numpy as np
 from PyFOAM_custom.PyFOAM_custom import getRANSVectorBoundary, sortPatch
 import matplotlib.path as mpltPath
-from postProcessing import getPeriod
+#from postProcessing import getPeriod
 import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 from scipy.interpolate import interp1d
@@ -61,8 +61,8 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
 
     MAX_HEIGHT_INCHES = 8.0
     if fig_height > MAX_HEIGHT_INCHES:
-        print("WARNING: fig_height too large:" + fig_height +
-              "so will reduce to" + MAX_HEIGHT_INCHES + "inches.")
+        print("WARNING: fig_height too large:" + str(fig_height) +
+              "so will reduce to" + str(MAX_HEIGHT_INCHES) + "inches.")
         fig_height = MAX_HEIGHT_INCHES
 
     params = {'backend': 'ps',
@@ -88,7 +88,6 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
               'font.family': 'serif',
               'lines.linewidth': 0.5,
               'grid.linewidth': 0.5,
-              'grid.linestyle': 'None', #'dotted',
               'figure.autolayout': True,         # added to allways show the axis
     }
 
@@ -109,6 +108,9 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
               'axes.spines.left': True,
               'axes.spines.bottom': True,
               'axes.grid': True,
+              'grid.linestyle': 'dotted',
+              'axes.xmargin': 0.1,
+              'axes.ymargin': 0.1,
         }
         matplotlib.rcParams.update(params_add)
         
@@ -127,9 +129,9 @@ def latexify(fig_width=None, fig_height=None, columns=2, type='line',
               'axes.spines.top': False,
               'axes.spines.left': True,
               'axes.spines.right': False,
-              
-              'axes.xmargin': 0.1,
-              'axes.ymargin': 0.01,
+              'grid.linestyle': 'dotted',
+              'axes.xmargin': 0.0,
+              'axes.ymargin': 0.0,
         }
         matplotlib.rcParams.update(params_add)
 
@@ -146,7 +148,7 @@ def linePlot(x, y, title=None, xlabel=None, ylabel=None, columns=2,
             figName = plt.plot(x, y, '--')
         else:
             figName = plt.plot(x, y)
-        plt.ticklabel_format(style=axisStyle, axis='both', scilimits=(0,1))
+        plt.ticklabel_format(style=axisStyle, axis='both', scilimits=(0,0))
     elif plotType=='semilogx':
         if dashed==True:
             figName = plt.semilogx(x, y, '--')
@@ -271,11 +273,12 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     """
     plt.close('all')
     
-    latexify(columns=columns, type='contour')
     
     if plot_limits is None:
         plot_limits=[np.min(var[~np.isnan(var)]), np.max(var[~np.isnan(var)])]
     plotRange = plot_limits[1]  - plot_limits[0] 
+    
+    aspect = (np.max(meshy)-np.min(meshy))/(np.max(meshx) - np.min(meshx))
     if cmap_name is None:
         cmap_name = "jet"
         
@@ -285,9 +288,10 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     else:
         cmap = cmap_name
     
+    latexify(columns=columns, type='contour')
+
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.set_aspect('equal')
     plot_levels_array = np.linspace(plot_limits[0], plot_limits[1],
                                     plot_levels)
     plot_fig = ax.contourf(meshx, meshy, var, plot_levels_array,
@@ -302,8 +306,9 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
 #    ax.set_xlabel(r'$x/c [-]$')
 #    ax.set_ylabel(r'$y/c [-]$')
     
-    ax.set_xlabel(r'r/R [-]')
-    ax.set_ylabel(r'$t^*$ [-]')
+    ax.set_xlabel(r'x/c [-]')#               (r'r/R [-]')
+    ax.set_ylabel(r'y/c [-]')#               (r'$t^*$ [-]')    
+
     ax.xaxis.labelpad -= 4
 #    print("plotLimits are: " + str(plot_limits))
     # Move the label of x axis a bit up.
@@ -319,6 +324,19 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
     # we need a small offset from the maximum value...
     ticks = np.round(np.linspace(m0, m4-0.001*plotRange, num_ticks), 4)  
     
+    #DEFINE THE FIGURE SIZE
+    longFig=0
+    if longFig:
+        bounds = ax.get_position().bounds
+        print(bounds)
+        figw = ax.figure.get_figwidth()*2/3
+        plotWidth = figw*bounds[2]
+        plotHeight = .3*aspect*plotWidth/4.
+        figh = plotHeight / (bounds[3])
+        print(plotHeight/plotWidth)
+        print("figsize = [%f, %f]" % (figw, figh))
+        ax.figure.set_size_inches(figw, figh)
+
     # get labels.
     if plotRange >= 500.:
         numLabels = np.round(np.linspace(m0, m4, num_ticks), 3)
@@ -355,6 +373,7 @@ def cont_cool(meshx, meshy, var, cbar_label, plot_levels, plot_limits=None,
         # Set linewidths for colorbar and axes box.
         cbar.outline.set_linewidth(0.5)
 #    [i.set_linewidth(0.15) for i in ax.spines.itervalues()]
+    
     return fig
 #    fig.savefig(contours_folder + '/' + filename + '.pdf',
 #                bbox_inches='tight')

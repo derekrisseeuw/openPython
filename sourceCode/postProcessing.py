@@ -308,7 +308,7 @@ def getPostProcessingFile(case, functionName):
         if functionName in folder:
             filePath = filePath + folder + "/"
             break
-#    print(filePath)
+        
     filePath = filePath + os.listdir(filePath)[0] + "/"
     filePath = filePath + os.listdir(filePath)[0] 
     
@@ -322,8 +322,6 @@ def getPostProcessingFile(case, functionName):
     f.close()    
     
     data = np.genfromtxt(filePath, skip_header=headerLines)
-#    print(filePath)
-#    print(data)
     time = data[:,0]
     keepRows= []
     for i in range(len(time)-1):
